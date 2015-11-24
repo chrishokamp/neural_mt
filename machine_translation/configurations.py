@@ -1,26 +1,26 @@
-def get_config_cs2en():
+def get_config_es2en():
     config = {}
 
     # Model related -----------------------------------------------------------
 
     # Sequences longer than this will be discarded
-    config['seq_len'] = 50
+    config['seq_len'] = 30
 
     # Number of hidden units in encoder/decoder GRU
-    config['enc_nhids'] = 1000
-    config['dec_nhids'] = 1000
+    config['enc_nhids'] = 500
+    config['dec_nhids'] = 500
 
     # Dimension of the word embedding matrix in encoder/decoder
-    config['enc_embed'] = 620
-    config['dec_embed'] = 620
+    config['enc_embed'] = 250 
+    config['dec_embed'] = 250
 
     # Where to save model, this corresponds to 'prefix' in groundhog
-    config['saveto'] = 'search_model_cs2en'
+    config['saveto'] = 'search_model_es2en'
 
     # Optimization related ----------------------------------------------------
 
     # Batch size
-    config['batch_size'] = 80
+    config['batch_size'] = 100 
 
     # This many batches will be read ahead and sorted
     config['sort_k_batches'] = 12
@@ -43,7 +43,7 @@ def get_config_cs2en():
     config['weight_noise_rec'] = False
 
     # Dropout ratio, applied only after readout maxout
-    config['dropout'] = 1.0
+    config['dropout'] = 0.5
 
     # Vocabulary/dataset related ----------------------------------------------
 
@@ -54,16 +54,16 @@ def get_config_cs2en():
     config['stream'] = 'stream'
 
     # Source and target vocabularies
-    config['src_vocab'] = datadir + 'vocab.cs-en.cs.pkl'
-    config['trg_vocab'] = datadir + 'vocab.cs-en.en.pkl'
+    config['src_vocab'] = datadir + 'vocab.es-en.es.pkl'
+    config['trg_vocab'] = datadir + 'vocab.es-en.en.pkl'
 
     # Source and target datasets
-    config['src_data'] = datadir + 'news-commentary-v10.cs-en.cs.tok.shuf'
-    config['trg_data'] = datadir + 'news-commentary-v10.cs-en.en.tok.shuf'
+    config['src_data'] = datadir + 'news-commentary-v10.es-en.es.tok.shuf'
+    config['trg_data'] = datadir + 'news-commentary-v10.es-en.en.tok.shuf'
 
     # Source and target vocabulary sizes, should include bos, eos, unk tokens
-    config['src_vocab_size'] = 30000
-    config['trg_vocab_size'] = 30000
+    config['src_vocab_size'] = 20000
+    config['trg_vocab_size'] = 20000
 
     # Special tokens and indexes
     config['unk_id'] = 1
@@ -80,7 +80,7 @@ def get_config_cs2en():
     config['bleu_script'] = datadir + 'multi-bleu.perl'
 
     # Validation set source file
-    config['val_set'] = datadir + 'newstest2013.cs.tok'
+    config['val_set'] = datadir + 'newstest2013.es.tok'
 
     # Validation set gold file
     config['val_set_grndtruth'] = datadir + 'newstest2013.en.tok'
@@ -106,15 +106,15 @@ def get_config_cs2en():
     config['save_freq'] = 500
 
     # Show samples from model after this many updates
-    config['sampling_freq'] = 13
+    config['sampling_freq'] = 500 
 
     # Show this many samples at each sampling
-    config['hook_samples'] = 2
+    config['hook_samples'] = 5
 
     # Validate bleu after this many updates
     config['bleu_val_freq'] = 5000
 
     # Start bleu validation after this many updates
-    config['val_burn_in'] = 80000
+    config['val_burn_in'] = 1000
 
     return config

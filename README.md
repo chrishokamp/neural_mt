@@ -1,4 +1,4 @@
-** Setting up experiments **
+**Setting up experiments**
 
 ```
 git clone https://github.com/Unbabel/neural_mt.git
@@ -15,18 +15,18 @@ python -m machine_translation 2&>1 | tee -a log.out
 ```
 
 
-**Here Define Image and Moduli instalation for AWS**
+**Image and Moduli Installation for AWS**
 
 For AWS, we installed an image Vasco Pinho found, we need to ask about the details
 
 TODO: add Anaconda, blocks+Fuel setup instructions and scripts
 
-** byobu commands for monitoring your experiments **
+***byobu commands for monitoring your experiments***
 
 - monitor GPU usage
 `watch -d nvidia-smi`
 
-** Notes and Gotchas **
+**Notes and Gotchas**
 - The `prepare_data.py` script tries to be smart about finding and extracting the data for your language pair, but it's not smart enough, because it doesn't find reverse pairs. I.e. if `es-en` exists, it doesn't know that you implictly have `en-es` (debates on translation direction aside). Therefore, you may need to rename some files in data/tmp/train_data.tgz to make things work.
 
 - the default configuration require too much memory for a 4GB GPU -- the params that you need to change are: 
@@ -55,6 +55,7 @@ For example, a working configuration is:
     config['dec_nhids'] = 600
 
     # Dimension of the word embedding matrix in encoder/decoder
+
     config['enc_embed'] = 400
     config['dec_embed'] = 400
 ```

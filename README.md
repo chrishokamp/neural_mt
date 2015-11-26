@@ -15,5 +15,8 @@ python -m machine_translation
 
 **Here Define Image and Moduli instalation for AWS**
 
-    For AWS, we installed an image Vasco Pinho found, we need to ask about the details
+For AWS, we installed an image Vasco Pinho found, we need to ask about the details
+
+TODO: add Anaconda, blocks+Fuel setup instructions and scripts
+
 

@@ -2,7 +2,7 @@
 
 ```
 git clone https://github.com/Unbabel/neural_mt.git
-cd machine_translation
+cd neural_mt
 
 # downloading and preprocessing the default data with vocab size = 30000
 python prepare_data.py -s es -t en --source-dev newstest2013.es --target-dev newstest2013.en --source-vocab 30000 --target-vocab 30000

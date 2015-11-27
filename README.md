@@ -4,10 +4,10 @@
 git clone https://github.com/Unbabel/neural_mt.git
 cd neural_mt
 
-# downloading and preprocessing the default data with vocab size = 30000
+# downloading and preprocessing the default data with vocab size = 30000 -- Make sure you have the source and target language codes correct!
 python machine_translation/prepare_data.py -s es -t en --source-dev newstest2013.es --target-dev newstest2013.en --source-vocab 30000 --target-vocab 30000
 
-# now edit machine_translation/configurations.py with your desired parameters
+# now edit machine_translation/configurations.py with your desired parameters, again, be careful about the language codes
 
 # run an experiment
 export THEANO_FLAGS='device=gpu3, on_unused_input=warn'
@@ -60,4 +60,5 @@ For example, a working configuration is:
     config['dec_embed'] = 400
 ```
 
+- the `config['vocab_size']` parameter also impacts the memory requirements, but you need to make sure that it corresponds to your settings for the `prepare_data.py` script (see above).
 

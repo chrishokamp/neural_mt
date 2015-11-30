@@ -10,10 +10,9 @@
 ### setting up theano with CUDA
 module load dev
 
-module load gcc/5.1.0
-module load gcc/4.9.2
-# fixes GLIB error, but throws nvcc error
-#module load gcc/4.9.2
+module load gcc/5.1.0 # fixes GLIB error, but throws nvcc error, which is why we need to also add the next lib
+module load gcc/4.9.2 
+module load intel/2015-u3 #mkl
 module load cuda/7.0
 
 # this hack is critical, otherwise things break
@@ -25,7 +24,7 @@ cd ${TEST_DIR}
 
 echo 'Testing the blocks machine translation example'
 
-python -m machine_translation > log.out
+python -m machine_translation 
 
 # tee stdout and monitor in detachable tmux session
 

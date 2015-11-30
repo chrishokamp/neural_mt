@@ -27,9 +27,18 @@ To run blocks+Fuel we used Anaconda. **DANGER** this will spoil the Grondhog
 installation. hd5 stuff wont work anymore. It also shares the same .theanorc and
 .theano/ folders and a fix is needed (see below)
 
-**Important**: Switch to bash
+**Important**: Switch from zsh to bash! 
 
-    Copied cuda paths from ~/.zshrc
+Copied the cuda paths from ~/.zshrc into ~/.bashrc
+
+    export PATH=/usr/local/cuda/bin:$PATH
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cudnn
+    export LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cudnn
+    export C_INCLUDE_PATH=/usr/local/cuda/include:/usr/local/cudnn
+    export CPLUS_INCLUDE_PATH=/usr/local/cuda/include:/usr/local/cudnn
+    export LLVM_CONFIG=/usr/bin/llvm-config-3.5
+    source /opt/intel/bin/compilervars.sh intel64
+    alias sudo='sudo -H'
 
 From Chris Hokamp's github instructions
 

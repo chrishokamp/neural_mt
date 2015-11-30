@@ -48,18 +48,18 @@ def get_config_es2en():
     # Vocabulary/dataset related ----------------------------------------------
 
     # Root directory for dataset
-    datadir = './data/'
+    datadir = '/ichec/work/dcu01/chokamp/data/'
 
     # Module name of the stream that will be used
     config['stream'] = 'stream'
 
     # Source and target vocabularies
-    config['src_vocab'] = datadir + 'vocab.es-en.es.pkl'
-    config['trg_vocab'] = datadir + 'vocab.es-en.en.pkl'
+    config['src_vocab'] = datadir + 'vocab.en-es.en.pkl'
+    config['trg_vocab'] = datadir + 'vocab.en-es.es.pkl'
 
     # Source and target datasets
-    config['src_data'] = datadir + 'news-commentary-v10.es-en.es.tok.shuf'
-    config['trg_data'] = datadir + 'news-commentary-v10.es-en.en.tok.shuf'
+    config['src_data'] = datadir + 'news-commentary-v10.en-es.en.tok.shuf'
+    config['trg_data'] = datadir + 'news-commentary-v10.en-es.es.tok.shuf'
 
     # Source and target vocabulary sizes, should include bos, eos, unk tokens
     config['src_vocab_size'] = 20000
@@ -80,10 +80,10 @@ def get_config_es2en():
     config['bleu_script'] = datadir + 'multi-bleu.perl'
 
     # Validation set source file
-    config['val_set'] = datadir + 'newstest2013.es.tok'
+    config['val_set'] = datadir + 'newstest2013.en.tok'
 
     # Validation set gold file
-    config['val_set_grndtruth'] = datadir + 'newstest2013.en.tok'
+    config['val_set_grndtruth'] = datadir + 'newstest2013.es.tok'
 
     # Print validation output to file
     config['output_val_set'] = True

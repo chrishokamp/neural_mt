@@ -13,25 +13,6 @@ The default installation uses zsh. The old Montreal NMT systm (groundhog)
 could be run directly from this config, although sizes have to be reduce to fit
 into the GPU.
 
-To run blocks+Fuel we used Anaconda. **DANGER** this will spoil the Grondhog
-installation hd5 stuff wont work anymore. It also shares the same .theanorc and
-.theano/ folders
-
-**Important**: Switch to bash
-
-    Copied cuda paths from ~/.zshrc
-
-From Chris Hokamp's github instructions, line 43
-
-    https://github.com/chrishokamp/python_deep_learning_stack_vm_setup/blob/master/install_python_deep_learning_stack.sh
-
-wget https://3230d63b5fc54e62148e-c95ac804525aac4b6dba79b00b39d1d3.ssl.cf1.rackcdn.com/Anaconda-2.3.0-Linux-x86_64.sh
-bash Anaconda*.sh
-cd
-
-TODO:
-
-
 ***Commands for monitoring your experiments***
 
 - acess the shared monitoring screens (Google for basic byoubiu commands)
@@ -40,7 +21,41 @@ TODO:
 - monitor GPU usage
 `watch -d nvidia-smi`
 
+**Install Anaconda and cutting edge theano for Blocks+Fuel**
 
+To run blocks+Fuel we used Anaconda. **DANGER** this will spoil the Grondhog
+installation. hd5 stuff wont work anymore. It also shares the same .theanorc and
+.theano/ folders and a fix is needed (see below)
+
+**Important**: Switch to bash
+
+    Copied cuda paths from ~/.zshrc
+
+From Chris Hokamp's github instructions
+
+    https://github.com/chrishokamp/python_deep_learning_stack_vm_setup/blob/master/install_python_deep_learning_stack.sh
+
+Start in line 43
+
+    wget https://3230d63b5fc54e62148e-c95ac804525aac4b6dba79b00b39d1d3.ssl.cf1.rackcdn.com/Anaconda-2.3.0-Linux-x86_64.sh
+    bash Anaconda*.sh
+    cd
+    source .bashrc
+
+At the current verison we need to use *fast_compile*. This has to be added to
+~/.theanorc as 
+
+    [global]
+    device = gpu0
+    floatX = float32
+    #optimizer_including = cudnn
+    optimizer = fast_compile
+    
+    [blas]
+    ldflags = -lmkl_rt
+    
+    [nvcc]
+    fastmath = True
 
 **Setting up Blocks+Fuel Neural MT experiments**
 
@@ -93,4 +108,3 @@ For example, a working configuration is:
 ```
 
 - the `config['vocab_size']` parameter also impacts the memory requirements, but you need to make sure that it corresponds to your settings for the `prepare_data.py` script (see above).
-

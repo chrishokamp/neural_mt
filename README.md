@@ -1,4 +1,50 @@
-**Setting up experiments**
+# Instructions to deploy and run Montreals Theano Neural-MT Model  
+
+**Image and Moduli Installation for AWS**
+
+For AWS, we installed an image Vasco Pinho found
+
+    spawned from is: ubuntu14.04-mkl-cuda-dl (ami-03e67874) in region eu-west-1 
+
+The default installation uses zsh. The old Montreal NMT systm (groundhog) 
+
+    https://github.com/lisa-groundhog/GroundHog
+
+could be run directly from this config, although sizes have to be reduce to fit
+into the GPU.
+
+To run blocks+Fuel we used Anaconda. *DANGER* this will spoil the Grondhog
+installation hd5 stuff wont work anymore.
+
+*Important*: Switch to bash
+
+From Chris Hokamp's github instructions
+
+    https://github.com/chrishokamp/python_deep_learning_stack_vm_setup/blob/master/install_python_deep_learning_stack.sh
+
+wget https://3230d63b5fc54e62148e-c95ac804525aac4b6dba79b00b39d1d3.ssl.cf1.rackcdn.com/Anaconda-2.3.0-Linux-x86_64.sh
+bash Anaconda*.sh
+cd
+
+
+# Install Anaconda in the GPU machine                    ... Chris 
+# *BUT* start from line 43: # install the anaconda python distribution 
+# Copied cuda paths from ~/.zshrc
+# Running but it killed the current Groundhog instalation since it uses the 
+# same .theanorc and .theano/ folders
+
+
+***Commands for monitoring your experiments***
+
+- acess the shared monitoring screens (Google for basic byoubiu commands)
+`byobu` 
+
+- monitor GPU usage
+`watch -d nvidia-smi`
+
+
+
+**Setting up Blocks+Fuel Neural MT experiments**
 
 ```
 git clone https://github.com/Unbabel/neural_mt.git
@@ -13,18 +59,6 @@ python machine_translation/prepare_data.py -s es -t en --source-dev newstest2013
 export THEANO_FLAGS='device=gpu3, on_unused_input=warn'
 python -m machine_translation 2&>1 | tee -a log.out 
 ```
-
-
-**Image and Moduli Installation for AWS**
-
-For AWS, we installed an image Vasco Pinho found, we need to ask about the details
-
-TODO: add Anaconda, blocks+Fuel setup instructions and scripts
-
-***byobu commands for monitoring your experiments***
-
-- monitor GPU usage
-`watch -d nvidia-smi`
 
 **Notes and Gotchas**
 - The `prepare_data.py` script tries to be smart about finding and extracting the data for your language pair, but it's not smart enough, because it doesn't find reverse pairs. I.e. if `es-en` exists, it doesn't know that you implictly have `en-es` (debates on translation direction aside). Therefore, you may need to rename some files in data/tmp/train_data.tgz to make things work.

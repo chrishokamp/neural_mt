@@ -170,8 +170,12 @@ class BleuValidator(SimpleExtension, SamplingBase):
                 self.config['val_burn_in']:
             return
 
-        # Evaluate and save if necessary
-        self._save_model(self._evaluate_model())
+        # Evaluate the model
+        bleu_score = self._evaluate_model()
+        # add an entry to the log
+        self.main_loop.log.current_row['validation_set_bleu_score'] = bleu_score
+        # save if necessary
+        self._save_model(bleu_score)
 
     def _evaluate_model(self):
 
@@ -255,6 +259,7 @@ class BleuValidator(SimpleExtension, SamplingBase):
         self.val_bleu_curve.append(bleu_score)
         logger.info(bleu_score)
         mb_subprocess.terminate()
+
 
         return bleu_score
 

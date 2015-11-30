@@ -6,7 +6,7 @@ from toolz import merge
 
 from blocks.algorithms import (GradientDescent, StepClipping, AdaDelta,
                                CompositeRule)
-from blocks.extensions import FinishAfter, Printing
+from blocks.extensions import FinishAfter, Printing, Timing
 from blocks.extensions.monitoring import TrainingDataMonitoring
 from blocks.filter import VariableFilter
 from blocks.graph import ComputationGraph, apply_noise, apply_dropout
@@ -160,6 +160,11 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
         cost=cost, parameters=cg.parameters,
         step_rule=CompositeRule([StepClipping(config['step_clipping']),
                                  eval(config['step_rule'])()])
+    )
+
+    # enrich the logged information
+    extensions.append(
+        Timing(every_n_batches=100)
     )
 
     # Initialize main loop

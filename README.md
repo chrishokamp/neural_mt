@@ -1,21 +1,21 @@
-# Instructions to deploy and run Montreals Theano Neural-MT Model  
+# Instructions to deploy and run Montreal's Theano Neural-MT Model  
 
 **Image and Moduli Installation for AWS**
 
 For AWS, we installed an image Vasco Pinho found
 
-    spawned from is: ubuntu14.04-mkl-cuda-dl (ami-03e67874) in region eu-west-1 
+    spawned from : ubuntu14.04-mkl-cuda-dl (ami-03e67874) in region eu-west-1 
 
-The default installation uses zsh. The old Montreal NMT systm (groundhog) 
+The default installation uses zsh. The old Montreal NMT system (groundhog) 
 
     https://github.com/lisa-groundhog/GroundHog
 
-could be run directly from this config, although sizes have to be reduce to fit
+could be run directly with this config, although sizes have to be reduced to fit
 into the GPU.
 
-***Commands for monitoring your experiments***
+**Commands for monitoring your experiments**
 
-- acess the shared monitoring screens (Google for basic byoubiu commands)
+- access the shared monitoring screens (Google for basic byoubiu commands)
 `byobu` 
 
 - monitor GPU usage
@@ -23,13 +23,17 @@ into the GPU.
 
 **Install Anaconda and cutting edge theano for Blocks+Fuel**
 
-To run blocks+Fuel we used Anaconda. **DANGER** this will spoil the Grondhog
-installation. hd5 stuff wont work anymore. It also shares the same .theanorc and
-.theano/ folders and a fix is needed (see below)
+To run blocks+Fuel install Anaconda. 
+
+**DANGER**: this will create a separate python install but still will spoil the
+Groundhog installation. We are not sure why, but a possible explanation is that
+both installations share the same .theanorc and .theano/ folders. Theano in
+Groundhog will work again of the same fix in ~/.theanorc as for Blocks is
+applied (see below). However, hd5 wont work anymore.
 
 **Important**: Switch from zsh to bash! 
 
-Copied the cuda paths from ~/.zshrc into ~/.bashrc
+Copy the cuda paths from ~/.zshrc into ~/.bashrc
 
     export PATH=/usr/local/cuda/bin:$PATH
     export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cudnn
@@ -51,8 +55,8 @@ Start in line 43
     cd
     source .bashrc
 
-At the current verison we need to use *fast_compile*. This has to be added to
-~/.theanorc as 
+At the current version theano will die unless we use *fast_compile*. This has
+to be added to ~/.theanorc as 
 
     [global]
     device = gpu0

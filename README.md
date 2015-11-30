@@ -13,12 +13,15 @@ The default installation uses zsh. The old Montreal NMT systm (groundhog)
 could be run directly from this config, although sizes have to be reduce to fit
 into the GPU.
 
-To run blocks+Fuel we used Anaconda. *DANGER* this will spoil the Grondhog
-installation hd5 stuff wont work anymore.
+To run blocks+Fuel we used Anaconda. **DANGER** this will spoil the Grondhog
+installation hd5 stuff wont work anymore. It also shares the same .theanorc and
+.theano/ folders
 
-*Important*: Switch to bash
+**Important**: Switch to bash
 
-From Chris Hokamp's github instructions
+    Copied cuda paths from ~/.zshrc
+
+From Chris Hokamp's github instructions, line 43
 
     https://github.com/chrishokamp/python_deep_learning_stack_vm_setup/blob/master/install_python_deep_learning_stack.sh
 
@@ -26,12 +29,7 @@ wget https://3230d63b5fc54e62148e-c95ac804525aac4b6dba79b00b39d1d3.ssl.cf1.rackc
 bash Anaconda*.sh
 cd
 
-
-# Install Anaconda in the GPU machine                    ... Chris 
-# *BUT* start from line 43: # install the anaconda python distribution 
-# Copied cuda paths from ~/.zshrc
-# Running but it killed the current Groundhog instalation since it uses the 
-# same .theanorc and .theano/ folders
+TODO:
 
 
 ***Commands for monitoring your experiments***

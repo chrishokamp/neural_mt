@@ -3,7 +3,7 @@
 #PBS -m ea
 #PBS -M chris.hokamp@gmail.com
 #PBS -l nodes=1:ppn=20
-#PBS -l walltime=2:00:00 
+#PBS -l walltime=100:00:00 
 #PBS -q GpuQ
 #PBS -A dcu01 
 

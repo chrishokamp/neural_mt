@@ -55,6 +55,23 @@ Start in line 43
     cd
     source .bashrc
 
+Install bleeding edge theano
+    git clone git://github.com/Theano/Theano.git
+    cd Theano
+    python setup.py develop --user
+    cd ..
+
+blocks
+make sure you're using Anaconda or similar
+
+stable
+    pip install git+git://github.com/mila-udem/blocks.git \
+    -r https://raw.githubusercontent.com/mila-udem/blocks/master/requirements.txt
+
+    # now upgrade
+    pip install git+git://github.com/mila-udem/blocks.git \
+        -r https://raw.githubusercontent.com/mila-udem/blocks/master/requirements.txt --upgrade
+
 At the current version theano will die unless we use *fast_compile*. This has
 to be added to ~/.theanorc as 
 

@@ -7,20 +7,21 @@ def get_config_es2en():
     config['seq_len'] = 30
 
     # Number of hidden units in encoder/decoder GRU
-    config['enc_nhids'] = 500
-    config['dec_nhids'] = 500
+    config['enc_nhids'] = 300
+    config['dec_nhids'] = 300
 
     # Dimension of the word embedding matrix in encoder/decoder
-    config['enc_embed'] = 250 
-    config['dec_embed'] = 250
+    config['enc_embed'] = 200 
+    config['dec_embed'] = 200
 
-    # Where to save model, this corresponds to 'prefix' in groundhog
-    config['saveto'] = 'search_model_es2en'
 
     # Optimization related ----------------------------------------------------
 
     # Batch size
-    config['batch_size'] = 100 
+    config['batch_size'] = 80 
+
+    # Where to save model, this corresponds to 'prefix' in groundhog
+    config['saveto'] = 'search_model_es2en_emb{}_rec{}_batch{}'.format(config['enc_embed'], config['enc_nhids'], config['batch_size'])
 
     # This many batches will be read ahead and sorted
     config['sort_k_batches'] = 12
@@ -62,8 +63,8 @@ def get_config_es2en():
     config['trg_data'] = datadir + 'news-commentary-v10.en-es.es.tok.shuf'
 
     # Source and target vocabulary sizes, should include bos, eos, unk tokens
-    config['src_vocab_size'] = 20000
-    config['trg_vocab_size'] = 20000
+    config['src_vocab_size'] = 30000
+    config['trg_vocab_size'] = 30000
 
     # Special tokens and indexes
     config['unk_id'] = 1
@@ -92,7 +93,7 @@ def get_config_es2en():
     config['val_set_out'] = config['saveto'] + '/validation_out.txt'
 
     # Beam-size
-    config['beam_size'] = 12
+    config['beam_size'] = 10
 
     # Timing/monitoring related -----------------------------------------------
 
@@ -103,18 +104,18 @@ def get_config_es2en():
     config['reload'] = True
 
     # Save model after this many updates
-    config['save_freq'] = 500
+    config['save_freq'] = 1000
 
     # Show samples from model after this many updates
-    config['sampling_freq'] = 500 
+    config['sampling_freq'] = 1000
 
     # Show this many samples at each sampling
     config['hook_samples'] = 5
 
     # Validate bleu after this many updates
-    config['bleu_val_freq'] = 5000
+    config['bleu_val_freq'] = 1000
 
     # Start bleu validation after this many updates
-    config['val_burn_in'] = 1000
+    config['val_burn_in'] = 5000
 
     return config

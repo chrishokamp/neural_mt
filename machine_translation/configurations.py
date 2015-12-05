@@ -7,8 +7,8 @@ def get_config_es2en():
     config['seq_len'] = 30
 
     # Number of hidden units in encoder/decoder GRU
-    config['enc_nhids'] = 300
-    config['dec_nhids'] = 300
+    config['enc_nhids'] = 500
+    config['dec_nhids'] = 500
 
     # Dimension of the word embedding matrix in encoder/decoder
     config['enc_embed'] = 200 
@@ -20,8 +20,6 @@ def get_config_es2en():
     # Batch size
     config['batch_size'] = 80 
 
-    # Where to save model, this corresponds to 'prefix' in groundhog
-    config['saveto'] = 'search_model_es2en_emb{}_rec{}_batch{}'.format(config['enc_embed'], config['enc_nhids'], config['batch_size'])
 
     # This many batches will be read ahead and sorted
     config['sort_k_batches'] = 12
@@ -49,7 +47,10 @@ def get_config_es2en():
     # Vocabulary/dataset related ----------------------------------------------
 
     # Root directory for dataset
-    datadir = '/ichec/work/dcu01/chokamp/data/'
+    datadir = '/ichec/work/dcu01/chokamp/nmt_data_en-es/'
+
+    # Where to save model, this corresponds to 'prefix' in groundhog
+    config['saveto'] = datadir + 'search_model_es2en_emb{}_rec{}_batch{}'.format(config['enc_embed'], config['enc_nhids'], config['batch_size'])
 
     # Module name of the stream that will be used
     config['stream'] = 'stream'
@@ -63,8 +64,8 @@ def get_config_es2en():
     config['trg_data'] = datadir + 'news-commentary-v10.en-es.es.tok.shuf'
 
     # Source and target vocabulary sizes, should include bos, eos, unk tokens
-    config['src_vocab_size'] = 30000
-    config['trg_vocab_size'] = 30000
+    config['src_vocab_size'] = 50000
+    config['trg_vocab_size'] = 50000
 
     # Special tokens and indexes
     config['unk_id'] = 1

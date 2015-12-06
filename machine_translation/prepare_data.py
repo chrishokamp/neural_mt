@@ -22,8 +22,10 @@ TOKENIZER_PREFIXES = 'https://raw.githubusercontent.com/moses-smt/' +\
                      'prefixes/nonbreaking_prefix.'
 BLEU_SCRIPT_URL = 'https://raw.githubusercontent.com/moses-smt/mosesdecoder' +\
                   '/master/scripts/generic/multi-bleu.perl'
-OUTPUT_DIR = './data'
-PREFIX_DIR = './share/nonbreaking_prefixes'
+
+# these get overwritten when command line args are read
+OUTPUT_DIR = ''
+PREFIX_DIR = ''
 
 parser = argparse.ArgumentParser(
     description="""
@@ -49,6 +51,12 @@ parser.add_argument("--source-vocab", type=int, default=30000,
                     help="Source language vocabulary size")
 parser.add_argument("--target-vocab", type=int, default=30000,
                     help="Target language vocabulary size")
+parser.add_argument("--data-dir", type=str, default='./data',
+                    help="Directory where the data will be stored")
+parser.add_argument("--prefix-dir", type=str, default='./share/nonbreaking_prefixes',
+                    help="Directory where the prefix lists will be stored")
+parser.add_argument("--threads", type=int, default=1,
+                    help="The number of threads available")
 
 
 def download_and_write_file(url, file_name):
@@ -107,13 +115,13 @@ def extract_tar_file_to(file_to_extract, extract_into, names_to_look):
     return extracted_filenames
 
 
-def tokenize_text_files(files_to_tokenize, tokenizer):
+def tokenize_text_files(files_to_tokenize, tokenizer, threads=1):
     for name in files_to_tokenize:
         logger.info("Tokenizing file [{}]".format(name))
         out_file = os.path.join(
             OUTPUT_DIR, os.path.basename(name) + '.tok')
         logger.info("...writing tokenized file [{}]".format(out_file))
-        var = ["perl", tokenizer,  "-l", name.split('.')[-1]]
+        var = ["perl", tokenizer,  "-l -threads {}".format(threads), name.split('.')[-1]]
         if not os.path.exists(out_file):
             with open(name, 'r') as inp:
                 with open(out_file, 'w', 0) as out:
@@ -201,7 +209,7 @@ def shuffle_parallel(src_filename, trg_filename):
         os.remove(shuffled_filename)
 
 
-def main():
+def main(arg_dict):
     train_data_file = os.path.join(OUTPUT_DIR, 'tmp', 'train_data.tgz')
     valid_data_file = os.path.join(OUTPUT_DIR, 'tmp', 'valid_data.tgz')
     preprocess_file = os.path.join(OUTPUT_DIR, 'preprocess.py')
@@ -238,7 +246,8 @@ def main():
                             target_prefix_file)
 
     # Apply tokenizer
-    tokenize_text_files(tr_files + val_files, tokenizer_file)
+    threads = arg_dict.get('threads', 1)
+    tokenize_text_files(tr_files + val_files, tokenizer_file, threads=threads)
 
     # Apply preprocessing and construct vocabularies
     src_filename, trg_filename = create_vocabularies(tr_files, preprocess_file)
@@ -254,4 +263,7 @@ if __name__ == "__main__":
     logger = logging.getLogger('prepare_data')
 
     args = parser.parse_args()
-    main()
+    arg_dict = vars(args)
+    OUTPUT_DIR = args['output-dir']
+    PREFIX_DIR = args['prefix-dir']
+    main(arg_dict)

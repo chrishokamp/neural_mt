@@ -1,12 +1,6 @@
 """Encoder-Decoder with search for machine translation.
 
-In this demo, encoder-decoder architecture with attention mechanism is used for
-machine translation. The attention mechanism is implemented according to
-[BCB]_. The training data used is WMT15 Czech to English corpus, which you have
-to download, preprocess and put to your 'datadir' in the config file. Note
-that, you can use `prepare_data.py` script to download and apply all the
-preprocessing steps needed automatically.  Please see `prepare_data.py` for
-further options of preprocessing.
+Please see `prepare_data.py` for preprocessing configuration
 
 .. [BCB] Dzmitry Bahdanau, Kyunghyun Cho and Yoshua Bengio. Neural
    Machine Translation by Jointly Learning to Align and Translate.
@@ -27,7 +21,7 @@ logger = logging.getLogger(__name__)
 parser = argparse.ArgumentParser()
 parser.add_argument("--proto",  default="get_config",
                     help="Prototype config to use for config")
-parser.add_argument("--datadir",  default="./data",
+parser.add_argument("--datadir",  default="./data/",
                     help="The directory where data should be stored")
 parser.add_argument("--bokeh",  default=False, action="store_true",
                     help="Use bokeh server for plotting")
@@ -37,6 +31,8 @@ args = parser.parse_args()
 if __name__ == "__main__":
     # Get configurations for model
     arg_dict = vars(parser.parse_args())
+    print('arg_dict')
+    print(arg_dict)
     configuration = getattr(configurations, args.proto)(arg_dict['datadir'])
     logger.info("Model options:\n{}".format(pprint.pformat(configuration)))
     # Get data streams and call main

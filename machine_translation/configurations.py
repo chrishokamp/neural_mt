@@ -4,15 +4,15 @@ def get_config(data_dir='./data/'):
     # Model related -----------------------------------------------------------
 
     # Sequences longer than this will be discarded
-    config['seq_len'] = 30
+    config['seq_len'] = 50
 
     # Number of hidden units in encoder/decoder GRU
-    config['enc_nhids'] = 500
-    config['dec_nhids'] = 500
+    config['enc_nhids'] = 1000
+    config['dec_nhids'] = 1000
 
     # Dimension of the word embedding matrix in encoder/decoder
-    config['enc_embed'] = 200
-    config['dec_embed'] = 200
+    config['enc_embed'] = 600
+    config['dec_embed'] = 600
 
 
     # Optimization related ----------------------------------------------------
@@ -42,7 +42,7 @@ def get_config(data_dir='./data/'):
     config['weight_noise_rec'] = False
 
     # Dropout ratio, applied only after readout maxout
-    config['dropout'] = 0.5
+    config['dropout'] = 1.0
 
     # Vocabulary/dataset related ----------------------------------------------
 
@@ -64,8 +64,8 @@ def get_config(data_dir='./data/'):
     config['trg_data'] = datadir + 'news-commentary-v10.en-es.es.tok.shuf'
 
     # Source and target vocabulary sizes, should include bos, eos, unk tokens
-    config['src_vocab_size'] = 50000
-    config['trg_vocab_size'] = 50000
+    config['src_vocab_size'] = 30000
+    config['trg_vocab_size'] = 30000
 
     # Special tokens and indexes
     config['unk_id'] = 1
@@ -94,7 +94,7 @@ def get_config(data_dir='./data/'):
     config['val_set_out'] = config['saveto'] + '/validation_out.txt'
 
     # Beam-size
-    config['beam_size'] = 10
+    config['beam_size'] = 12
 
     # Timing/monitoring related -----------------------------------------------
 
@@ -114,9 +114,9 @@ def get_config(data_dir='./data/'):
     config['hook_samples'] = 5
 
     # Validate bleu after this many updates
-    config['bleu_val_freq'] = 1000
+    config['bleu_val_freq'] = 5000
 
     # Start bleu validation after this many updates
-    config['val_burn_in'] = 5000
+    config['val_burn_in'] = 50000
 
     return config

@@ -1,4 +1,4 @@
-def get_config_es2en():
+def get_config(data_dir='./data/'):
     config = {}
 
     # Model related -----------------------------------------------------------
@@ -11,14 +11,14 @@ def get_config_es2en():
     config['dec_nhids'] = 500
 
     # Dimension of the word embedding matrix in encoder/decoder
-    config['enc_embed'] = 200 
+    config['enc_embed'] = 200
     config['dec_embed'] = 200
 
 
     # Optimization related ----------------------------------------------------
 
     # Batch size
-    config['batch_size'] = 80 
+    config['batch_size'] = 80
 
 
     # This many batches will be read ahead and sorted
@@ -47,7 +47,7 @@ def get_config_es2en():
     # Vocabulary/dataset related ----------------------------------------------
 
     # Root directory for dataset
-    datadir = '/ichec/work/dcu01/chokamp/nmt_data_en-es/'
+    datadir = data_dir
 
     # Where to save model, this corresponds to 'prefix' in groundhog
     config['saveto'] = datadir + 'search_model_es2en_emb{}_rec{}_batch{}'.format(config['enc_embed'], config['enc_nhids'], config['batch_size'])

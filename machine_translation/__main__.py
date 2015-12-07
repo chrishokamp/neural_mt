@@ -25,8 +25,10 @@ logger = logging.getLogger(__name__)
 
 # Get the arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("--proto",  default="get_config_es2en",
+parser.add_argument("--proto",  default="get_config",
                     help="Prototype config to use for config")
+parser.add_argument("--datadir",  default="./data",
+                    help="The directory where data should be stored")
 parser.add_argument("--bokeh",  default=False, action="store_true",
                     help="Use bokeh server for plotting")
 args = parser.parse_args()
@@ -34,7 +36,8 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
     # Get configurations for model
-    configuration = getattr(configurations, args.proto)()
+    arg_dict = vars(parser.parse_args())
+    configuration = getattr(configurations, args.proto)(arg_dict['datadir'])
     logger.info("Model options:\n{}".format(pprint.pformat(configuration)))
     # Get data streams and call main
     main(configuration, get_tr_stream(**configuration),

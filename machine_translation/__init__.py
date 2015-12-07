@@ -75,14 +75,14 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     # Apply weight noise for regularization
     if config['weight_noise_ff'] > 0.0:
         logger.info('Applying weight noise to ff layers')
-        enc_params = Selector(encoder.lookup).get_params().values()
-        enc_params += Selector(encoder.fwd_fork).get_params().values()
-        enc_params += Selector(encoder.back_fork).get_params().values()
+        enc_params = Selector(encoder.lookup).get_parameters().values()
+        enc_params += Selector(encoder.fwd_fork).get_parameters().values()
+        enc_params += Selector(encoder.back_fork).get_parameters().values()
         dec_params = Selector(
-            decoder.sequence_generator.readout).get_params().values()
+            decoder.sequence_generator.readout).get_parameters().values()
         dec_params += Selector(
-            decoder.sequence_generator.fork).get_params().values()
-        dec_params += Selector(decoder.state_init).get_params().values()
+            decoder.sequence_generator.fork).get_parameters().values()
+        dec_params += Selector(decoder.state_init).get_parameters().values()
         cg = apply_noise(cg, enc_params+dec_params, config['weight_noise_ff'])
 
     # Print shapes

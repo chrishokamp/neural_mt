@@ -85,6 +85,8 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
         dec_params += Selector(decoder.state_init).get_parameters().values()
         cg = apply_noise(cg, enc_params+dec_params, config['weight_noise_ff'])
 
+    # TODO: weight noise for recurrent params isn't currently implemented -- see config['w
+
     # Print shapes
     shapes = [param.get_value().shape for param in cg.parameters]
     logger.info("Parameter shapes: ")

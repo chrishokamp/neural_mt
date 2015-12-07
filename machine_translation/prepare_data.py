@@ -87,6 +87,7 @@ def download_and_write_file(url, file_name):
         logger.info("...file exists [{}]".format(file_name))
 
 
+# TODO: names_to_look should be optional -- only in the case where user doesn't explictly specify the parallel data
 def extract_tar_file_to(file_to_extract, extract_into, names_to_look):
     extracted_filenames = []
     try:
@@ -220,15 +221,17 @@ def main(arg_dict):
     target_prefix_file = os.path.join(PREFIX_DIR,
                                       'nonbreaking_prefix.' + args.target)
 
+    # TODO: change this to let user specify their own training and dev data
     # Download the News Commentary v10 ~122Mb and extract it
+    # TODO: only download if user doesn't specify, don't force the search over language pair string in the file name
     download_and_write_file(TRAIN_DATA_URL, train_data_file)
-    tr_files = extract_tar_file_to(
+    training_files = extract_tar_file_to(
         train_data_file, os.path.dirname(train_data_file),
         ["{}-{}".format(args.source, args.target)])
 
     # Download development set and extract it
     download_and_write_file(VALID_DATA_URL, valid_data_file)
-    val_files = extract_tar_file_to(
+    validation_files = extract_tar_file_to(
         valid_data_file, os.path.dirname(valid_data_file),
         [args.source_dev, args.target_dev])
 
@@ -247,10 +250,10 @@ def main(arg_dict):
 
     # Apply tokenizer
     threads = arg_dict.get('threads', 1)
-    tokenize_text_files(tr_files + val_files, tokenizer_file, threads=threads)
+    tokenize_text_files(training_files + validation_files, tokenizer_file, threads=threads)
 
     # Apply preprocessing and construct vocabularies
-    src_filename, trg_filename = create_vocabularies(tr_files, preprocess_file)
+    src_filename, trg_filename = create_vocabularies(training_files, preprocess_file)
 
     # Shuffle datasets
     shuffle_parallel(os.path.join(OUTPUT_DIR, src_filename),

@@ -51,9 +51,9 @@ parser.add_argument("--source-vocab", type=int, default=30000,
                     help="Source language vocabulary size")
 parser.add_argument("--target-vocab", type=int, default=30000,
                     help="Target language vocabulary size")
-parser.add_argument("--data-dir", type=str, default='./data',
+parser.add_argument("--data_dir", type=str, default='./data/',
                     help="Directory where the data will be stored")
-parser.add_argument("--prefix-dir", type=str, default='./share/nonbreaking_prefixes',
+parser.add_argument("--prefix_dir", type=str, default='./share/nonbreaking_prefixes',
                     help="Directory where the prefix lists will be stored")
 parser.add_argument("--threads", type=int, default=1,
                     help="The number of threads available")
@@ -265,8 +265,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger('prepare_data')
 
+
     args = parser.parse_args()
     arg_dict = vars(args)
-    OUTPUT_DIR = args['output-dir']
-    PREFIX_DIR = args['prefix-dir']
+    OUTPUT_DIR = arg_dict['data_dir']
+    PREFIX_DIR = arg_dict['prefix_dir']
     main(arg_dict)

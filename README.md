@@ -61,10 +61,10 @@ Install bleeding edge theano
     python setup.py develop --user
     cd ..
 
-blocks
+**Blocks**
+
 make sure you're using Anaconda or similar
 
-stable
     pip install git+git://github.com/mila-udem/blocks.git \
     -r https://raw.githubusercontent.com/mila-udem/blocks/master/requirements.txt
 

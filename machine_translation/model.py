@@ -168,6 +168,8 @@ class Decoder(Initializable):
         # initial outputs which is used by LookupFeedBackWMT15
         readout = Readout(
             source_names=['states', 'feedback',
+                          # Chris: it's key that we're taking the first output of self.attention.take_glimpses.outputs
+                          # Chris: the first output is the weighted avgs, the second is the weights in (batch, time)
                           self.attention.take_glimpses.outputs[0]],
             readout_dim=self.vocab_size,
             emitter=SoftmaxEmitter(initial_output=-1, theano_seed=theano_seed),

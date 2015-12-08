@@ -1,12 +1,8 @@
 import os
 import re
 import argparse
-import logging
 
 import numpy as np
-
-#logger = logging.getLogger('extract_params')
-#logger.setLevel(logging.DEBUG)
 
 parser = argparse.ArgumentParser(
     description="""Extract the parameters from a serialized blocks model""", formatter_class=argparse.RawTextHelpFormatter)
@@ -30,7 +26,7 @@ def extract_model_parameters(config):
         with open(output_path, 'wb') as output:
             np.save(output, param_value)
 
-    	print('saved model key: {} to {}'.format(param_name, output_path))
+        print('saved model key: {} to {}'.format(param_name, output_path))
 
 if __name__ == '__main__':
     config = vars(parser.parse_args())

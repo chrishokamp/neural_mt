@@ -1,5 +1,5 @@
 #!/bin/sh
-#PBS -N atn-en-es
+#PBS -N atn-en-es-huge-data
 #PBS -m ea
 #PBS -M chris.hokamp@gmail.com
 #PBS -l nodes=1:ppn=20
@@ -24,15 +24,7 @@ cd ${TEST_DIR}
 
 echo 'Testing the blocks machine translation example'
 
-python -m machine_translation 
+#python -m machine_translation --datadir='/ichec/work/dcu01/chokamp/nmt_data_en-es/'
+python -m machine_translation --datadir='/ichec/work/dcu01/chokamp/unbabel_mt_data_processed/data/'
 
-# tee stdout and monitor in detachable tmux session
-
-# anaconda packages
-# /ichec/packages/python/anaconda/1.9.2/lib/python2.7/site-packages/
-#export PYTHONPATH=$PYTHONPATH:/ichec/packages/python/anaconda/1.9.2/lib/python2.7/site-packages/
-
-### other things for your .bashrc
-# A pbs job will also set this automatically?
-#export WORKDIR=/ichec/work/dcu01/chokamp/
 

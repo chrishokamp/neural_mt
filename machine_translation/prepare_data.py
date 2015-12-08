@@ -57,6 +57,10 @@ parser.add_argument("--prefix_dir", type=str, default='./share/nonbreaking_prefi
                     help="Directory where the prefix lists will be stored")
 parser.add_argument("--threads", type=int, default=1,
                     help="The number of threads available")
+parser.add_argument("--train_data", type=str, default=None,
+                    help="Optional path to user-specified training data in .tgz")
+parser.add_argument("--dev_data", type=str, default=None,
+                    help="Optional path to user-specified dev data in .tgz (overrides source-dev and target-dev")
 
 
 def download_and_write_file(url, file_name):
@@ -88,31 +92,41 @@ def download_and_write_file(url, file_name):
 
 
 # TODO: names_to_look should be optional -- only in the case where user doesn't explictly specify the parallel data
-def extract_tar_file_to(file_to_extract, extract_into, names_to_look):
-    extracted_filenames = []
+def find_lang_pair_files_in_tar(file_to_extract, names_to_look):
     try:
-        logger.info("Extracting file [{}] into [{}]"
-                    .format(file_to_extract, extract_into))
         tar = tarfile.open(file_to_extract, 'r')
         src_trg_files = [ff for ff in tar.getnames()
                          if any([ff.find(nn) > -1 for nn in names_to_look])]
         if not len(src_trg_files):
             raise ValueError("[{}] pair does not exist in the archive!"
                              .format(src_trg_files))
-        for item in tar:
-            # extract only source-target pair
-            if item.name in src_trg_files:
-                file_path = os.path.join(extract_into, item.path)
-                if not os.path.exists(file_path):
-                    logger.info("...extracting [{}] into [{}]"
-                                .format(item.name, file_path))
-                    tar.extract(item, extract_into)
-                else:
-                    logger.info("...file exists [{}]".format(file_path))
-                extracted_filenames.append(
-                    os.path.join(extract_into, item.path))
+        return src_trg_files
     except Exception as e:
         logger.error("{}".format(str(e)))
+
+
+def extract_tar(file_to_extract, extract_into, files_to_extract=None):
+
+    tar = tarfile.open(file_to_extract, 'r')
+    # if user didn't specify which files to extract, extract everything
+    if files_to_extract is None:
+        files_to_extract = tar.getnames()
+
+    extracted_filenames = []
+    for item in tar:
+        # extract only source-target pair
+        if item.name in files_to_extract:
+            logger.info("Extracting file [{}] into [{}]"
+                .format(file_to_extract, extract_into))
+            file_path = os.path.join(extract_into, item.path)
+            if not os.path.exists(file_path):
+                logger.info("...extracting [{}] into [{}]"
+                            .format(item.name, file_path))
+                tar.extract(item, extract_into)
+                extracted_filenames.append(os.path.join(extract_into, item.path))
+            else:
+                logger.info("...file exists [{}]".format(file_path))
+                extracted_filenames.append(os.path.join(extract_into, item.path))
     return extracted_filenames
 
 
@@ -184,13 +198,13 @@ def split_parallel(merged_filename, src_filename, trg_filename):
                     right.write(line[1].strip() + '\n')
 
 
-def shuffle_parallel(src_filename, trg_filename):
+def shuffle_parallel(src_filename, trg_filename, temp_dir='./'):
     logger.info("Shuffling jointly [{}] and [{}]".format(src_filename,
                                                          trg_filename))
     out_src = src_filename + '.shuf'
     out_trg = trg_filename + '.shuf'
-    merged_filename = str(uuid.uuid4())
-    shuffled_filename = str(uuid.uuid4())
+    merged_filename = os.path.join(temp_dir,str(uuid.uuid4()))
+    shuffled_filename = os.path.join(temp_dir, str(uuid.uuid4()))
     if not os.path.exists(out_src) or not os.path.exists(out_trg):
         try:
             merge_parallel(src_filename, trg_filename, merged_filename)
@@ -211,8 +225,10 @@ def shuffle_parallel(src_filename, trg_filename):
 
 
 def main(arg_dict):
-    train_data_file = os.path.join(OUTPUT_DIR, 'tmp', 'train_data.tgz')
-    valid_data_file = os.path.join(OUTPUT_DIR, 'tmp', 'valid_data.tgz')
+    # if user didn't specify the training data, do the default (assume .tgz file containing two files (src and tgt)
+    # note that files must end with the lowercase language suffix -- i.e. *.en
+
+    # scripts that we'll pull from the moses and groundhog githubs
     preprocess_file = os.path.join(OUTPUT_DIR, 'preprocess.py')
     bleuscore_file = os.path.join(OUTPUT_DIR, 'multi-bleu.perl')
     tokenizer_file = os.path.join(OUTPUT_DIR, 'tokenizer.perl')
@@ -220,21 +236,6 @@ def main(arg_dict):
                                       'nonbreaking_prefix.' + args.source)
     target_prefix_file = os.path.join(PREFIX_DIR,
                                       'nonbreaking_prefix.' + args.target)
-
-    # TODO: change this to let user specify their own training and dev data
-    # Download the News Commentary v10 ~122Mb and extract it
-    # TODO: only download if user doesn't specify, don't force the search over language pair string in the file name
-    download_and_write_file(TRAIN_DATA_URL, train_data_file)
-    training_files = extract_tar_file_to(
-        train_data_file, os.path.dirname(train_data_file),
-        ["{}-{}".format(args.source, args.target)])
-
-    # Download development set and extract it
-    download_and_write_file(VALID_DATA_URL, valid_data_file)
-    validation_files = extract_tar_file_to(
-        valid_data_file, os.path.dirname(valid_data_file),
-        [args.source_dev, args.target_dev])
-
     # Download bleu score calculation script
     download_and_write_file(BLEU_SCRIPT_URL, bleuscore_file)
 
@@ -248,6 +249,35 @@ def main(arg_dict):
     download_and_write_file(TOKENIZER_PREFIXES + args.target,
                             target_prefix_file)
 
+    user_train = arg_dict.get('train_data', None)
+    user_dev = arg_dict.get('dev_data', None)
+    output_dir = arg_dict.get('data_dir')
+
+    if user_train is None:
+        train_data_file = os.path.join(OUTPUT_DIR, 'tmp', 'train_data.tgz')
+        # Download the News Commentary v10 ~122Mb and extract it
+        download_and_write_file(TRAIN_DATA_URL, train_data_file)
+        # if user wants just the news-commentary data
+        train_files_to_extract = find_lang_pair_files_in_tar(
+            train_data_file, ["{}-{}".format(args.source, args.target)])
+        training_files = extract_tar(train_data_file, os.path.dirname(train_data_file), train_files_to_extract)
+    else:
+        # use user data
+        logger.info('Using training data at: {}'.format(user_train))
+        training_files = extract_tar(user_train, os.path.dirname(output_dir))
+
+    if user_dev is None:
+        valid_data_file = os.path.join(OUTPUT_DIR, 'tmp', 'valid_data.tgz')
+        # Download development set and extract it
+        download_and_write_file(VALID_DATA_URL, valid_data_file)
+        valid_files_to_extract = find_lang_pair_files_in_tar(
+            valid_data_file, [args.source_dev, args.target_dev])
+        validation_files = extract_tar(valid_data_file, os.path.dirname(valid_data_file), valid_files_to_extract)
+    else:
+        # use user's data
+        logger.info('Using dev data at: {}'.format(user_dev))
+        validation_files = extract_tar(user_dev, os.path.dirname(output_dir))
+
     # Apply tokenizer
     threads = arg_dict.get('threads', 1)
     tokenize_text_files(training_files + validation_files, tokenizer_file, threads=threads)
@@ -257,14 +287,13 @@ def main(arg_dict):
 
     # Shuffle datasets
     shuffle_parallel(os.path.join(OUTPUT_DIR, src_filename),
-                     os.path.join(OUTPUT_DIR, trg_filename))
+                     os.path.join(OUTPUT_DIR, trg_filename), temp_dir=OUTPUT_DIR)
 
 
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger('prepare_data')
-
 
     args = parser.parse_args()
     arg_dict = vars(args)

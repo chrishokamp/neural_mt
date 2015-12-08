@@ -110,7 +110,7 @@ def extract_tar(file_to_extract, extract_into, files_to_extract=None):
     tar = tarfile.open(file_to_extract, 'r')
     # if user didn't specify which files to extract, extract everything
     if files_to_extract is None:
-        files_to_extract = [i for i in tar]
+        files_to_extract = tar.getnames()
 
     extracted_filenames = []
     for item in tar:

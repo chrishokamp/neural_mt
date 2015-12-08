@@ -82,10 +82,11 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
             decoder.sequence_generator.readout).get_parameters().values()
         dec_params += Selector(
             decoder.sequence_generator.fork).get_parameters().values()
-        dec_params += Selector(decoder.state_init).get_parameters().values()
+        dec_params += Selector(decoder.transition.initial_transformer).get_parameters().values()
         cg = apply_noise(cg, enc_params+dec_params, config['weight_noise_ff'])
 
-    # TODO: weight noise for recurrent params isn't currently implemented -- see config['w
+    # TODO: weight noise for recurrent params isn't currently implemented -- see config['weight_noise_rec']
+    # TODO: make sure noise and dropout aren't getting applied at prediction time
 
     # Print shapes
     shapes = [param.get_value().shape for param in cg.parameters]

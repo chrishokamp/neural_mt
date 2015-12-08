@@ -10,7 +10,8 @@ logger.setLevel(logging.DEBUG)
 
 parser = argparse.ArgumentParser(
     description="""Extract the parameters from a serialized blocks model""", formatter_class=argparse.RawTextHelpFormatter)
-parser.add_argument("model_file", type=str, help="The location of your serialized .npz model")
+    parser.add_argument("model_file", type=str, help="The location of your serialized .npz model")
+    parser.add_argument("extract_dir", type=str, help="Where to save the output files")
 
 
 # the model _MUST_ be loaded in the same python context (same modules available), otherwise there will be an error
@@ -18,6 +19,7 @@ parser.add_argument("model_file", type=str, help="The location of your serialize
 def extract_model_parameters(config):
 
     model = np.load(config['model_file'])
+    extract_dir = config['extract_dir']
 
     for param_name in model.keys():
         param_value = model[param_name][()].get_value()

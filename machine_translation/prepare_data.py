@@ -123,6 +123,7 @@ def extract_tar(file_to_extract, extract_into, files_to_extract=None):
                 logger.info("...extracting [{}] into [{}]"
                             .format(item.name, file_path))
                 tar.extract(item, extract_into)
+                extracted_filenames.append(os.path.join(extract_into, item.path))
             else:
                 logger.info("...file exists [{}]".format(file_path))
                 extracted_filenames.append(os.path.join(extract_into, item.path))
@@ -197,13 +198,13 @@ def split_parallel(merged_filename, src_filename, trg_filename):
                     right.write(line[1].strip() + '\n')
 
 
-def shuffle_parallel(src_filename, trg_filename):
+def shuffle_parallel(src_filename, trg_filename, temp_dir='./'):
     logger.info("Shuffling jointly [{}] and [{}]".format(src_filename,
                                                          trg_filename))
     out_src = src_filename + '.shuf'
     out_trg = trg_filename + '.shuf'
-    merged_filename = str(uuid.uuid4())
-    shuffled_filename = str(uuid.uuid4())
+    merged_filename = os.path.join(temp_dir,str(uuid.uuid4()))
+    shuffled_filename = os.path.join(temp_dir, str(uuid.uuid4()))
     if not os.path.exists(out_src) or not os.path.exists(out_trg):
         try:
             merge_parallel(src_filename, trg_filename, merged_filename)
@@ -286,7 +287,7 @@ def main(arg_dict):
 
     # Shuffle datasets
     shuffle_parallel(os.path.join(OUTPUT_DIR, src_filename),
-                     os.path.join(OUTPUT_DIR, trg_filename))
+                     os.path.join(OUTPUT_DIR, trg_filename), temp_dir=OUTPUT_DIR)
 
 
 if __name__ == "__main__":

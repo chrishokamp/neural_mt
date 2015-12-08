@@ -5,13 +5,14 @@ import logging
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+#logger = logging.getLogger('extract_params')
+#logger.setLevel(logging.DEBUG)
 
 parser = argparse.ArgumentParser(
     description="""Extract the parameters from a serialized blocks model""", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("model_file", type=str, help="The location of your serialized .npz model")
-    parser.add_argument("extract_dir", type=str, help="Where to save the output files")
+
+parser.add_argument("model_file", type=str, help="The location of your serialized .npz model")
+parser.add_argument("extract_dir", type=str, help="Where to save the output files")
 
 
 # the model _MUST_ be loaded in the same python context (same modules available), otherwise there will be an error
@@ -29,7 +30,7 @@ def extract_model_parameters(config):
         with open(output_path, 'wb') as output:
             np.save(output, param_value)
 
-    logger.info('saved model key: {} to {}'.format(param_name, output_name))
+    	print('saved model key: {} to {}'.format(param_name, output_path))
 
 if __name__ == '__main__':
     config = vars(parser.parse_args())

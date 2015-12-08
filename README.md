@@ -80,6 +80,8 @@ to be added to ~/.theanorc as
     floatX = float32
     #optimizer_including = cudnn
     optimizer = fast_compile
+    # This is needed, otherwise it will die on eval
+    on_unused_input = warn
     
     [blas]
     ldflags = -lmkl_rt

@@ -4,15 +4,15 @@ def get_config(data_dir='./data/'):
     # Model related -----------------------------------------------------------
 
     # Sequences longer than this will be discarded
-    config['seq_len'] = 50
+    config['seq_len'] = 30
 
     # Number of hidden units in encoder/decoder GRU
-    config['enc_nhids'] = 1000
-    config['dec_nhids'] = 1000
+    config['enc_nhids'] = 500
+    config['dec_nhids'] = 500
 
     # Dimension of the word embedding matrix in encoder/decoder
-    config['enc_embed'] = 600
-    config['dec_embed'] = 600
+    config['enc_embed'] = 200
+    config['dec_embed'] = 200
 
 
     # Optimization related ----------------------------------------------------

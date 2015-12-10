@@ -61,6 +61,10 @@ parser.add_argument("--train_data", type=str, default=None,
                     help="Optional path to user-specified training data in .tgz")
 parser.add_argument("--dev_data", type=str, default=None,
                     help="Optional path to user-specified dev data in .tgz (overrides source-dev and target-dev")
+parser.add_argument("--source_vocab_file", type=str, default=None,
+                    help="Optional path to a file to use to create the source vocabulary")
+parser.add_argument("--target_vocab_file", type=str, default=None,
+                    help="Optional path to a file to use to create the target vocabulary")
 
 
 def download_and_write_file(url, file_name):
@@ -146,7 +150,7 @@ def tokenize_text_files(files_to_tokenize, tokenizer, threads=1):
             logger.info("...file exists [{}]".format(out_file))
 
 
-def create_vocabularies(tr_files, preprocess_file, vocab_files=None):
+def create_vocabularies(tr_files, preprocess_file, source_vocab_file=None, target_vocab_file=None):
     """
     :param tr_files:
     :param preprocess_file:
@@ -161,9 +165,6 @@ def create_vocabularies(tr_files, preprocess_file, vocab_files=None):
         OUTPUT_DIR, 'vocab.{}-{}.{}.pkl'.format(
             args.source, args.target, args.target))
 
-    # TODO: optionally pass in external vocabulary files
-    # TODO: TEMPORARY HACK -- JUST HARDCODE
-    import ipdb;ipdb.set_trace()
     src_filename = os.path.basename(
         tr_files[[i for i, n in enumerate(tr_files)
                   if n.endswith(args.source)][0]]) + '.tok'
@@ -171,17 +172,16 @@ def create_vocabularies(tr_files, preprocess_file, vocab_files=None):
         tr_files[[i for i, n in enumerate(tr_files)
                   if n.endswith(args.target)][0]]) + '.tok'
 
-    # WORKING: find what src_filename and trg_filename are
-    import ipdb;ipdb.set_trace()
-
-    # if vocab_files is not None:
-    #     target_vocab_file =
+    if source_vocab_file is None:
+        source_vocab_file = src_filename
+    if target_vocab_file is None:
+        target_vocab_file = trg_filename
 
     logger.info("Creating source vocabulary [{}]".format(src_vocab_name))
     if not os.path.exists(src_vocab_name):
         subprocess.check_call(" python {} -d {} -v {} {}".format(
             preprocess_file, src_vocab_name, args.source_vocab,
-            os.path.join(OUTPUT_DIR, src_filename)),
+            os.path.join(OUTPUT_DIR, source_vocab_file)),
             shell=True)
     else:
         logger.info("...file exists [{}]".format(src_vocab_name))
@@ -190,7 +190,7 @@ def create_vocabularies(tr_files, preprocess_file, vocab_files=None):
     if not os.path.exists(trg_vocab_name):
         subprocess.check_call(" python {} -d {} -v {} {}".format(
             preprocess_file, trg_vocab_name, args.target_vocab,
-            os.path.join(OUTPUT_DIR, trg_filename)),
+            os.path.join(OUTPUT_DIR, target_vocab_file)),
             shell=True)
     else:
         logger.info("...file exists [{}]".format(trg_vocab_name))
@@ -296,16 +296,21 @@ def main(arg_dict):
         logger.info('Using dev data at: {}'.format(user_dev))
         validation_files = extract_tar(user_dev, os.path.dirname(output_dir))
 
-
-    import ipdb;ipdb.set_trace()
-
     # Apply tokenizer
     threads = arg_dict.get('threads', 1)
     tokenize_text_files(training_files + validation_files, tokenizer_file, threads=threads)
 
     # Apply preprocessing and construct vocabularies
-    # TODO: this function does two things: (1) writes the vocabulary .pkls to disk, 2
-    src_filename, trg_filename = create_vocabularies(training_files, preprocess_file)
+    # TODO: this function does two things: (1) writes the vocabulary .pkls to disk, 2 returns the filenames
+    # TODO: the filenames already exist from the tokenization step, so they should be returned from there
+    # optional files to use for the vocab creation -- useful if you want to filter the MT vocab by the words contained
+    # in another file
+    src_vocab_file = arg_dict['source_vocab_file']
+    tgt_vocab_file = arg_dict['target_vocab_file']
+
+    src_filename, trg_filename = create_vocabularies(training_files, preprocess_file,
+                                                     source_vocab_file=src_vocab_file,
+                                                     target_vocab_file=tgt_vocab_file)
 
     # Shuffle datasets
     shuffle_parallel(os.path.join(OUTPUT_DIR, src_filename),

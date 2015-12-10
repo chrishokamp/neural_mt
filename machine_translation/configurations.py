@@ -16,7 +16,6 @@ def get_config(data_dir='./data/'):
 
 
     # Optimization related ----------------------------------------------------
-
     # Batch size
     config['batch_size'] = 80
 

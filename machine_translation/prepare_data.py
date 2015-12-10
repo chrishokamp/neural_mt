@@ -146,19 +146,37 @@ def tokenize_text_files(files_to_tokenize, tokenizer, threads=1):
             logger.info("...file exists [{}]".format(out_file))
 
 
-def create_vocabularies(tr_files, preprocess_file):
+def create_vocabularies(tr_files, preprocess_file, vocab_files=None):
+    """
+    :param tr_files:
+    :param preprocess_file:
+    :return:
+
+    Note this function depends on some tr_files ending with args.source and args.target
+    """
     src_vocab_name = os.path.join(
         OUTPUT_DIR, 'vocab.{}-{}.{}.pkl'.format(
             args.source, args.target, args.source))
     trg_vocab_name = os.path.join(
         OUTPUT_DIR, 'vocab.{}-{}.{}.pkl'.format(
             args.source, args.target, args.target))
+
+    # TODO: optionally pass in external vocabulary files
+    # TODO: TEMPORARY HACK -- JUST HARDCODE
+    import ipdb;ipdb.set_trace()
     src_filename = os.path.basename(
         tr_files[[i for i, n in enumerate(tr_files)
                   if n.endswith(args.source)][0]]) + '.tok'
     trg_filename = os.path.basename(
         tr_files[[i for i, n in enumerate(tr_files)
                   if n.endswith(args.target)][0]]) + '.tok'
+
+    # WORKING: find what src_filename and trg_filename are
+    import ipdb;ipdb.set_trace()
+
+    # if vocab_files is not None:
+    #     target_vocab_file =
+
     logger.info("Creating source vocabulary [{}]".format(src_vocab_name))
     if not os.path.exists(src_vocab_name):
         subprocess.check_call(" python {} -d {} -v {} {}".format(
@@ -278,11 +296,15 @@ def main(arg_dict):
         logger.info('Using dev data at: {}'.format(user_dev))
         validation_files = extract_tar(user_dev, os.path.dirname(output_dir))
 
+
+    import ipdb;ipdb.set_trace()
+
     # Apply tokenizer
     threads = arg_dict.get('threads', 1)
     tokenize_text_files(training_files + validation_files, tokenizer_file, threads=threads)
 
     # Apply preprocessing and construct vocabularies
+    # TODO: this function does two things: (1) writes the vocabulary .pkls to disk, 2
     src_filename, trg_filename = create_vocabularies(training_files, preprocess_file)
 
     # Shuffle datasets
@@ -295,6 +317,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger('prepare_data')
 
+    # Some of the functions close over args
     args = parser.parse_args()
     arg_dict = vars(args)
     OUTPUT_DIR = arg_dict['data_dir']

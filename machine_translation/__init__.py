@@ -86,8 +86,6 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
         cg = apply_noise(cg, enc_params+dec_params, config['weight_noise_ff'])
 
     # TODO: weight noise for recurrent params isn't currently implemented -- see config['weight_noise_rec']
-    # TODO: make sure noise and dropout aren't getting applied at prediction time
-
     # Print shapes
     shapes = [param.get_value().shape for param in cg.parameters]
     logger.info("Parameter shapes: ")

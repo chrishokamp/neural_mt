@@ -6,8 +6,22 @@ Follow the instructions matching your platform at
 
     install_instructions
 
-**Training a Model**
+**Training a Sample Model**
 
+There is a sample experiment with very small data set up in `test_data/sample_experiment/tiny_demo_dataset`. The 
+configuration file for this experiment is in `experiment/configs/sample_nmt_config.yaml`. If your environment is set
+up correctly, you can run:
+```
+python -m machine_translation experiments/configs/sample_nmt_config.yaml
+```
+to make sure things are working. The paths in this demo are relative, so you need to run it from inside the
+`neural_mt` directory.
+
+**Training a Real Model**
+
+There are two steps to the  process: (1) Prepare your training and validation experiments (2) train your model
+
+1- Preparing the data
 Download and preprocess the default data with vocab size = 30000. Make sure you
 have the source and target language codes correct!
 
@@ -28,7 +42,7 @@ The default gpu should be zero. To select another GPU e.g. number 3 pre-apend
 
 to your call
 
-    python -m machine_translation 2&>1 | tee -a log.out 
+    python -m machine_translation <path_to_configuration_file.yaml> 2&>1 | tee -a log.out 
 
 When using remote machines it is useful to launch the jobs from byobu, tmux or
 similar
@@ -77,6 +91,11 @@ For example, a working configuration is:
 - the `config['vocab_size']` parameter also impacts the memory requirements,
   but you need to make sure that it corresponds to your settings for the
   `prepare_data.py` script (see above).
+  
+- we have also added support for using custom vocabularies from another file or set of files. This is useful if 
+you want to use the parameters of the trained NMT model to initialize another model, such as a Quality Estimation model, 
+and you need the vocabularies to match. See `machine_translation/prepare_data.py` for the available dataset preparation
+  commands.
 
 **Commands for monitoring your experiments**
 

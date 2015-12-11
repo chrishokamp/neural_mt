@@ -21,7 +21,7 @@ to make sure things are working. The paths in this demo are relative, so you nee
 
 There are two steps to the  process: (1) Prepare your training and validation experiments (2) train your model
 
-1- Preparing the data
+(1) Preparing the data          
 Download and preprocess the default data with vocab size = 30000. Make sure you
 have the source and target language codes correct!
 
@@ -29,6 +29,8 @@ have the source and target language codes correct!
 
 Edit machine_translation/configurations.py with your desired parameters, again,
 be careful about the language codes
+
+(2) Training the model            
 
 Be sure your ~/.theanorc is configured correctly (see install_instructions). 
 

@@ -59,7 +59,12 @@ class SaveLoadUtils(object):
         missing = set(params_this.keys()) - set(params.keys())
         for pname in params_this.keys():
             if pname in params:
-                val = params[pname][()].get_value()
+                # the if/else here is to handle loading from the pickled model
+                # vs. loading from the .npz best bleu scores
+                if hasattr(params[pname], 'get_value'):
+                    val = params[pname]
+                else:
+                    val = params[pname][()].get_value()
                 if params_this[pname].get_value().shape != val.shape:
                     logger.warning(
                         " Dimension mismatch {}-{} for {}"

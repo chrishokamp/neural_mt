@@ -1,0 +1,44 @@
+# Installing into a machine with existing theano install and no root
+
+**Important:** The machine needs to have HDF5 installed, otherwise it wont
+work. There are instructions online for local HDF5 install but I could not make
+the work (I did not try too hard)
+
+Use virtualenv over the pre-existing instalation 
+
+    virtualenv venv --system-site-packages
+
+**DANGER** As in the Anaconda case, this seem to update at least part o the
+existing theano instalation in the system
+
+Install bleeding edge theano
+
+    git clone git://github.com/Theano/Theano.git
+    cd Theano
+    python setup.py develop --user
+    cd ..
+
+Install Blocks
+
+    pip install git+git://github.com/mila-udem/blocks.git \
+    -r https://raw.githubusercontent.com/mila-udem/blocks/master/requirements.txt
+
+    pip install git+git://github.com/mila-udem/blocks.git \
+        -r https://raw.githubusercontent.com/mila-udem/blocks/master/requirements.txt --upgrade
+
+Modify *optimizer* and *on_unused_input* in ~/.theanorc as in the AWS case
+
+    [global]
+    optimizer = fast_compile
+    on_unused_input = warn
+    
+    [lib]
+    # This will reserve 90% of GPU's memory
+    cnmem = 0.9
+
+To use the GPU you need to specify where the CUDA is. I did this in the
+~/.bashrc although the ~/.theanorc will work as well. In ~/.basrc write
+
+    export THEANO_FLAGS='cuda.root=/usr/local/cuda/,device=gpu,floatX=float32'
+
+Note that *device*, selects the gpu to be used. Bear in mind other users!.

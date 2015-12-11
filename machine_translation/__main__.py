@@ -19,10 +19,8 @@ logger = logging.getLogger(__name__)
 
 # Get the arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("--proto",  default="get_config",
-                    help="Prototype config to use for config")
-parser.add_argument("--datadir",  default="./data/",
-                    help="The directory where data should be stored")
+parser.add_argument("exp_config", required=True,
+                    help="Path to the yaml config file for your experiment")
 parser.add_argument("--bokeh",  default=False, action="store_true",
                     help="Use bokeh server for plotting")
 args = parser.parse_args()
@@ -30,11 +28,11 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
     # Get configurations for model
-    arg_dict = vars(parser.parse_args())
-    print('arg_dict')
-    print(arg_dict)
-    configuration = getattr(configurations, args.proto)(arg_dict['datadir'])
-    logger.info("Model options:\n{}".format(pprint.pformat(configuration)))
+    args = parser.parse_args()
+    arg_dict = vars(args)
+    configuration_file = arg_dict['exp_config']
+    config_obj = configurations.get_config(configuration_file)
+    logger.info("Model options:\n{}".format(pprint.pformat(config_obj)))
     # Get data streams and call main
-    main(configuration, get_tr_stream(**configuration),
-         get_dev_stream(**configuration), args.bokeh)
+    main(config_obj, get_tr_stream(**config_obj),
+         get_dev_stream(**config_obj), args.bokeh)

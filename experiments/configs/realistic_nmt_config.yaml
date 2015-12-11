@@ -1,0 +1,117 @@
+# Model related -----------------------------------------------------------
+# Sequences longer than this will be discarded
+'seq_len': 30
+# Number of hidden units in encoder/decoder GRU
+'enc_nhids': &REC_SIZE 500
+'dec_nhids': 500
+
+# Dimension of the word embedding matrix in encoder/decoder
+'enc_embed': &EMBED_SIZE 200
+'dec_embed': 200
+
+# Optimization related ----------------------------------------------------
+# Batch size
+'batch_size': &BATCH_SIZE 80
+
+# This many batches will be read ahead and sorted
+'sort_k_batches': 12
+
+# Optimization step rule
+'step_rule': 'AdaDelta'
+
+# Gradient clipping threshold
+'step_clipping': 1.
+
+# Std of weight initialization
+'weight_scale': 0.01
+
+# Regularization related --------------------------------------------------
+
+# Weight noise flag for feed forward layers
+'weight_noise_ff': False
+
+# Weight noise flag for recurrent layers
+'weight_noise_rec': False
+
+# Dropout ratio, applied only after readout maxout
+'dropout': 1.0
+
+# Vocabulary/dataset related ----------------------------------------------
+
+# Root directory for dataset
+'datadir': &DATADIR ./data/
+
+# the name of the directory where the model will be saved and checkpointed
+'model_save_directory': &SAVEDIR !format_str ['search_model_es2en_emb{}_rec{}_batch{}', *EMBED_SIZE, *REC_SIZE, *BATCH_SIZE]
+
+# Where to save model, this corresponds to 'prefix' in groundhog
+'saveto': &OUTPUT_DIR !path_join [*DATADIR, *SAVEDIR]
+
+# Module name of the stream that will be used
+# note this requires the stream to be implemented as a module -- there may be a better way
+'stream': 'stream'
+
+# Source and target vocabularies
+'src_vocab': !path_join [*DATADIR, 'vocab.en-es.en.pkl']
+'trg_vocab': !path_join [*DATADIR, 'vocab.en-es.es.pkl']
+
+# Source and target datasets
+'src_data': !path_join [*DATADIR, 'news-commentary-v10.en-es.en.tok.shuf']
+'trg_data': !path_join [*DATADIR, 'news-commentary-v10.en-es.es.tok.shuf']
+
+# Source and target vocabulary sizes, should include bos, eos, unk tokens
+'src_vocab_size': 30000
+'trg_vocab_size': 30000
+
+# Special tokens and indexes
+'unk_id': 1
+'bos_token': '<S>'
+'eos_token': '</S>'
+'unk_token': '<UNK>'
+
+# Early stopping based on BLEU score on dev set ------------------------------------
+
+# Normalize cost according to sequence length after beam-search
+'normalized_bleu': True
+
+# Bleu script that will be used (moses multi-perl in this case)
+'bleu_script': !path_join [*DATADIR, 'multi-bleu.perl']
+
+# Validation set source file
+'val_set': !path_join [*DATADIR, 'newstest2013.en.tok']
+
+# Validation set gold file
+'val_set_grndtruth': !path_join [*DATADIR, 'newstest2013.es.tok']
+
+# Print validation output to file
+'output_val_set': True
+
+# Validation output file
+'val_set_out': !path_join [*OUTPUT_DIR, '/validation_out.txt']
+
+# Beam-size
+'beam_size': 12
+
+# Timing/monitoring related -----------------------------------------------
+
+# Maximum number of updates
+'finish_after': 1000000
+
+# Reload model from files if exist
+'reload': True
+
+# Save model after this many updates
+'save_freq': 1000
+
+# Show samples from model after this many updates
+'sampling_freq': 1000
+
+# Show this many samples at each sampling
+'hook_samples': 5
+
+# Validate bleu after this many updates
+'bleu_val_freq': 5000
+
+# Start bleu validation after this many updates
+'val_burn_in': 50000
+

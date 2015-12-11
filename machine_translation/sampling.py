@@ -7,6 +7,7 @@ import os
 import re
 import signal
 import time
+import theano
 
 from blocks.extensions import SimpleExtension
 from blocks.search import BeamSearch
@@ -15,6 +16,9 @@ from subprocess import Popen, PIPE
 
 logger = logging.getLogger(__name__)
 
+# this is to let us use all of the sources in the fuel dev stream
+# without needing to explicitly filter them
+theano.config.on_unused_input = 'warn'
 
 class SamplingBase(object):
     """Utility class for BleuValidator and Sampler."""
@@ -96,6 +100,8 @@ class Sampler(SimpleExtension, SamplingBase):
             target_length = self._get_true_length(target_[i], self.trg_vocab)
 
             inp = input_[i, :input_length]
+
+            # outputs of self.sampling_fn:
             _1, outputs, _2, _3, costs = (self.sampling_fn(inp[None, :]))
             outputs = outputs.flatten()
             costs = costs.T

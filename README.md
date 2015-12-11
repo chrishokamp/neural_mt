@@ -1,114 +1,49 @@
-# Instructions to deploy and run Montreal's Theano Neural-MT Model  
+# Unbabel's version of Montreal's Theano Neural-MT Model  
 
-**Image and Moduli Installation for AWS**
+**Install**
 
-For AWS, we installed an image Vasco Pinho found
+Follow the instructions matching your platform at
 
-    spawned from : ubuntu14.04-mkl-cuda-dl (ami-03e67874) in region eu-west-1 
+    install_instructions
 
-The default installation uses zsh. The old Montreal NMT system (groundhog) 
+**Training a Model**
 
-    https://github.com/lisa-groundhog/GroundHog
+Download and preprocess the default data with vocab size = 30000. Make sure you
+have the source and target language codes correct!
 
-could be run directly with this config, although sizes have to be reduced to fit
-into the GPU.
+    python machine_translation/prepare_data.py -s es -t en --source-dev newstest2013.es --target-dev newstest2013.en --source-vocab 30000 --target-vocab 30000
 
-**Commands for monitoring your experiments**
+Edit machine_translation/configurations.py with your desired parameters, again,
+be careful about the language codes
 
-- access the shared monitoring screens (Google for basic byoubiu commands)
-`byobu` 
+Be sure your ~/.theanorc is configured correctly (see install_instructions). 
 
-- monitor GPU usage
-`watch -d nvidia-smi`
+If you are using a GPU, check the memory available with 
 
-**Install Anaconda and cutting edge theano for Blocks+Fuel**
+    watch -d nvidia-smi
 
-To run blocks+Fuel install Anaconda. 
+The default gpu should be zero. To select another GPU e.g. number 3 pre-apend
 
-**DANGER**: this will create a separate python install but still will spoil the
-Groundhog installation. We are not sure why, but a possible explanation is that
-both installations share the same .theanorc and .theano/ folders. Theano in
-Groundhog will work again of the same fix in ~/.theanorc as for Blocks is
-applied (see below). However, hd5 wont work anymore.
+    export THEANO_FLAGS='device=gpu3'
 
-**Important**: Switch from zsh to bash! 
+to your call
 
-Copy the cuda paths from ~/.zshrc into ~/.bashrc
+    python -m machine_translation 2&>1 | tee -a log.out 
 
-    export PATH=/usr/local/cuda/bin:$PATH
-    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cudnn
-    export LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cudnn
-    export C_INCLUDE_PATH=/usr/local/cuda/include:/usr/local/cudnn
-    export CPLUS_INCLUDE_PATH=/usr/local/cuda/include:/usr/local/cudnn
-    export LLVM_CONFIG=/usr/bin/llvm-config-3.5
-    source /opt/intel/bin/compilervars.sh intel64
-    alias sudo='sudo -H'
-
-From Chris Hokamp's github instructions
-
-    https://github.com/chrishokamp/python_deep_learning_stack_vm_setup/blob/master/install_python_deep_learning_stack.sh
-
-Start in line 43
-
-    wget https://3230d63b5fc54e62148e-c95ac804525aac4b6dba79b00b39d1d3.ssl.cf1.rackcdn.com/Anaconda-2.3.0-Linux-x86_64.sh
-    bash Anaconda*.sh
-    cd
-    source .bashrc
-
-Install bleeding edge theano
-    git clone git://github.com/Theano/Theano.git
-    cd Theano
-    python setup.py develop --user
-    cd ..
-
-**Blocks**
-
-make sure you're using Anaconda or similar
-
-    pip install git+git://github.com/mila-udem/blocks.git \
-    -r https://raw.githubusercontent.com/mila-udem/blocks/master/requirements.txt
-
-    # now upgrade
-    pip install git+git://github.com/mila-udem/blocks.git \
-        -r https://raw.githubusercontent.com/mila-udem/blocks/master/requirements.txt --upgrade
-
-At the current version theano will die unless we use *fast_compile*. This has
-to be added to ~/.theanorc as 
-
-    [global]
-    device = gpu0
-    floatX = float32
-    #optimizer_including = cudnn
-    optimizer = fast_compile
-    # This is needed, otherwise it will die on eval
-    on_unused_input = warn
-    
-    [blas]
-    ldflags = -lmkl_rt
-    
-    [nvcc]
-    fastmath = True
-
-**Setting up Blocks+Fuel Neural MT experiments**
-
-```
-git clone https://github.com/Unbabel/neural_mt.git
-cd neural_mt
-
-# downloading and preprocessing the default data with vocab size = 30000 -- Make sure you have the source and target language codes correct!
-python machine_translation/prepare_data.py -s es -t en --source-dev newstest2013.es --target-dev newstest2013.en --source-vocab 30000 --target-vocab 30000
-
-# now edit machine_translation/configurations.py with your desired parameters, again, be careful about the language codes
-
-# run an experiment
-export THEANO_FLAGS='device=gpu3, on_unused_input=warn'
-python -m machine_translation 2&>1 | tee -a log.out 
-```
+When using remote machines it is useful to launch the jobs from byobu, tmux or
+similar
 
 **Notes and Gotchas**
-- The `prepare_data.py` script tries to be smart about finding and extracting the data for your language pair, but it's not smart enough, because it doesn't find reverse pairs. I.e. if `es-en` exists, it doesn't know that you implictly have `en-es` (debates on translation direction aside). Therefore, you may need to rename some files in data/tmp/train_data.tgz to make things work.
 
-- the default configuration require too much memory for a 4GB GPU -- the params that you need to change are: 
+- The `prepare_data.py` script tries to be smart about finding and extracting
+  the data for your language pair, but it's not smart enough, because it
+  doesn't find reverse pairs. I.e. if `es-en` exists, it doesn't know that you
+  implicitly have `en-es` (debates on translation direction aside). Therefore,
+  you may need to rename some files in data/tmp/train_data.tgz to make things
+  work.
+
+- the default configuration requires too much memory for a 4GB GPU -- the
+  params that you need to change are: 
 ```
     # Sequences longer than this will be discarded
     config['seq_len'] = 50
@@ -139,4 +74,14 @@ For example, a working configuration is:
     config['dec_embed'] = 400
 ```
 
-- the `config['vocab_size']` parameter also impacts the memory requirements, but you need to make sure that it corresponds to your settings for the `prepare_data.py` script (see above).
+- the `config['vocab_size']` parameter also impacts the memory requirements,
+  but you need to make sure that it corresponds to your settings for the
+  `prepare_data.py` script (see above).
+
+**Commands for monitoring your experiments**
+
+- access the shared monitoring screens (Google for basic byoubiu commands)
+`byobu` 
+
+- monitor GPU usage
+`watch -d nvidia-smi`

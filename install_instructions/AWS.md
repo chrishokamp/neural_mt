@@ -1,4 +1,4 @@
-# Installing in from a AWS image  
+# Installing from an AWS image  
 
 For AWS, we installed an image Vasco Pinho found
 
@@ -51,17 +51,17 @@ Install bleeding edge theano
     python setup.py develop --user
     cd ..
 
-**Blocks**
+Blocks
 
     pip install git+git://github.com/mila-udem/blocks.git \
     -r https://raw.githubusercontent.com/mila-udem/blocks/master/requirements.txt
 
-    # now upgrade
+Now upgrade
+
     pip install git+git://github.com/mila-udem/blocks.git \
         -r https://raw.githubusercontent.com/mila-udem/blocks/master/requirements.txt --upgrade
 
-At the current version theano will die unless we use *fast_compile*. Also Blocks leaves variables without use that will kill the eval process. The
-~/.theanorc has to be therefore configured as follows 
+At the current version theano will die unless we use *fast_compile*. Also Blocks leaves variables without use that will kill the eval process. The ~/.theanorc has to be therefore configured as follows 
 
     [global]
     device = gpu0
@@ -70,7 +70,7 @@ At the current version theano will die unless we use *fast_compile*. Also Blocks
     # This is needed for this AWS install, otherwise theano dies 
     optimizer = fast_compile
     # This downgrades "unused input variable error" to a warning. Needed to run
-    # the eval the MT training
+    # eval on the MT training
     on_unused_input = warn
     
     [blas]

@@ -67,6 +67,7 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     # apply dropout for regularization
     if config['dropout'] < 1.0:
         # dropout is applied to the output of maxout in ghog
+        # this is the probability of dropping out, so you probably want to make it <=0.5
         logger.info('Applying dropout')
         dropout_inputs = [x for x in cg.intermediary_variables
                           if x.name == 'maxout_apply_output']

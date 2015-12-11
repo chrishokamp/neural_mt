@@ -11,6 +11,7 @@ import theano
 
 from blocks.extensions import SimpleExtension
 from blocks.search import BeamSearch
+from checkpoint import SaveLoadUtils
 
 from subprocess import Popen, PIPE
 
@@ -293,8 +294,8 @@ class BleuValidator(SimpleExtension, SamplingBase):
             # Save the model here
             s = signal.signal(signal.SIGINT, signal.SIG_IGN)
             logger.info("Saving new model {}".format(model.path))
-            numpy.savez(
-                model.path, **self.main_loop.model.get_parameter_dict())
+            # WORKING -- use the save_parameter_values from checkpoint here
+            SaveLoadUtils.save_parameter_values(self.main_loop.model.get_parameter_values(), model.path)
             numpy.savez(
                 os.path.join(self.config['saveto'], 'val_bleu_scores.npz'),
                 bleu_scores=self.val_bleu_curve)

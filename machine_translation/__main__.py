@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Get the arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("exp_config", required=True,
+parser.add_argument("exp_config",
                     help="Path to the yaml config file for your experiment")
 parser.add_argument("--bokeh",  default=False, action="store_true",
                     help="Use bokeh server for plotting")

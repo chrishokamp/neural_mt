@@ -21,4 +21,4 @@ yaml.add_constructor('!format_str', format_str)
 
 
 def get_config(config_file):
-    return yaml.load(config_file)
+    return yaml.load(open(config_file))

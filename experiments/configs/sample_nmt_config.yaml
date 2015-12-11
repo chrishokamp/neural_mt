@@ -116,3 +116,11 @@
 
 # Start bleu validation after this many updates
 'val_burn_in': 100
+
+# Using trained models for prediction ------------
+
+# The location of the saved parameters of a trained model as .npz
+'saved_parameters': '/home/chris/projects/neural_mt/test_data/sample_experiment/tiny_demo_dataset/search_model_es2en_emb50_rec100_batch80/best_bleu_model_1449842515_BLEU0.00.npz'
+
+# The location of a test set in the source language
+'test_set': !path_join [*DATADIR, 'newstest2013.small.en.tok']

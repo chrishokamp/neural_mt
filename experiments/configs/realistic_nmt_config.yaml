@@ -115,3 +115,11 @@
 # Start bleu validation after this many updates
 'val_burn_in': 50000
 
+# Using trained models for prediction ------------
+
+# The location of the saved parameters of a trained model as .npz
+'saved_parameters': ~
+
+# The location of a test set in the source language
+'test_set': ~
+

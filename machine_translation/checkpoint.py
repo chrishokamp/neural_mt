@@ -34,21 +34,46 @@ class SaveLoadUtils(object):
     def path_to_log(self):
         return os.path.join(self.folder, 'log')
 
-    def load_parameter_values(self, path):
+    @staticmethod
+    def load_parameter_values(path):
         with closing(numpy.load(path)) as source:
             param_values = {}
             for name, value in source.items():
                 if name != 'pkl':
+                    # Chris: BRICK_DELIMITER is defined in blocks.serialization
                     name_ = name.replace(BRICK_DELIMITER, '/')
                     if not name_.startswith('/'):
                         name_ = '/' + name_
                     param_values[name_] = value
         return param_values
 
-    def save_parameter_values(self, param_values, path):
+    @staticmethod
+    def save_parameter_values(param_values, path):
         param_values = {name.replace("/", "-"): param
                         for name, param in param_values.items()}
         numpy.savez(path, **param_values)
+
+    @staticmethod
+    def set_model_parameters(model, params):
+        params_this = model.get_parameter_dict()
+        missing = set(params_this.keys()) - set(params.keys())
+        for pname in params_this.keys():
+            if pname in params:
+                val = params[pname][()].get_value()
+                if params_this[pname].get_value().shape != val.shape:
+                    logger.warning(
+                        " Dimension mismatch {}-{} for {}"
+                        .format(params_this[pname].get_value().shape,
+                                val.shape, pname))
+
+                params_this[pname].set_value(val)
+                logger.info(" Loaded to CG {:15}: {}"
+                            .format(val.shape, pname))
+            else:
+                logger.warning(" Parameter does not exist: {}".format(pname))
+        logger.info(
+            " Number of parameters loaded for computation graph: {}"
+            .format(len(params_this) - len(missing)))
 
 
 class CheckpointNMT(SimpleExtension, SaveLoadUtils):
@@ -136,26 +161,7 @@ class LoadNMT(TrainingExtension, SaveLoadUtils):
         try:
             logger.info(" ...loading model parameters")
             params_all = self.load_parameters()
-            params_this = main_loop.model.get_parameter_dict()
-            missing = set(params_this.keys()) - set(params_all.keys())
-            for pname in params_this.keys():
-                if pname in params_all:
-                    val = params_all[pname]
-                    if params_this[pname].get_value().shape != val.shape:
-                        logger.warning(
-                            " Dimension mismatch {}-{} for {}"
-                            .format(params_this[pname].get_value().shape,
-                                    val.shape, pname))
-
-                    params_this[pname].set_value(val)
-                    logger.info(" Loaded to CG {:15}: {}"
-                                .format(val.shape, pname))
-                else:
-                    logger.warning(
-                        " Parameter does not exist: {}".format(pname))
-            logger.info(
-                " Number of parameters loaded for computation graph: {}"
-                .format(len(params_this) - len(missing)))
+            self.set_model_parameters(main_loop.model, params_all)
         except Exception as e:
             logger.error(" Error {0}".format(str(e)))
 

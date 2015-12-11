@@ -3,6 +3,9 @@ import logging
 from collections import Counter
 from theano import tensor
 from toolz import merge
+import numpy
+import os
+import pickle
 
 from blocks.algorithms import (GradientDescent, StepClipping, AdaDelta,
                                CompositeRule)
@@ -14,10 +17,14 @@ from blocks.initialization import IsotropicGaussian, Orthogonal, Constant
 from blocks.main_loop import MainLoop
 from blocks.model import Model
 from blocks.select import Selector
+from blocks.search import BeamSearch
+
 
 from machine_translation.checkpoint import CheckpointNMT, LoadNMT
 from machine_translation.model import BidirectionalEncoder, Decoder
-from machine_translation.sampling import BleuValidator, Sampler
+from machine_translation.sampling import BleuValidator, Sampler, SamplingBase
+from machine_translation.stream import (get_tr_stream, get_dev_stream,
+                                        _ensure_special_tokens)
 
 try:
     from blocks.extras.extensions.plot import Plot
@@ -181,3 +188,95 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
 
     # Train!
     main_loop.run()
+
+
+# WORKING -- make a prediction function which loads an existing model and waits for input on stdin
+def predict(exp_config):
+
+    encoder = BidirectionalEncoder(
+        exp_config['src_vocab_size'], exp_config['enc_embed'], exp_config['enc_nhids'])
+
+    decoder = Decoder(
+        exp_config['trg_vocab_size'], exp_config['dec_embed'], exp_config['dec_nhids'],
+        exp_config['enc_nhids'] * 2)
+
+    # Create Theano variables
+    logger.info('Creating theano variables')
+    sampling_input = tensor.lmatrix('source')
+
+    # Get test set stream
+    test_stream = get_dev_stream(
+    exp_config['test_set'], exp_config['src_vocab'],
+    exp_config['src_vocab_size'], exp_config['unk_id'])
+    ftrans = open(exp_config['test_set'] + '.trans.out', 'w')
+
+    # Helper utilities
+    sutils = SamplingBase()
+    unk_idx = exp_config['unk_id']
+    src_eos_idx = exp_config['src_vocab_size'] - 1
+    trg_eos_idx = exp_config['trg_vocab_size'] - 1
+
+    # Get beam search
+    logger.info("Building sampling model")
+    sampling_representation = encoder.apply(
+        sampling_input, tensor.ones(sampling_input.shape))
+    generated = decoder.generate(sampling_input, sampling_representation)
+    _, samples = VariableFilter(
+        bricks=[decoder.sequence_generator], name="outputs")(
+                 ComputationGraph(generated[1]))  # generated[1] is next_outputs
+    beam_search = BeamSearch(samples=samples)
+
+    logger.info("Creating Model...")
+    model = Model(generated)
+    logger.info("Loading parameters from model: {}".format(exp_config['saveto']))
+
+    # load the parameter values from an .npz file
+    param_values = LoadNMT.load_parameter_values(exp_config['saved_parameters'])
+    LoadNMT.set_model_parameters(model, param_values)
+
+    # Get target vocabulary
+    trg_vocab = _ensure_special_tokens(
+        pickle.load(open(exp_config['trg_vocab'])), bos_idx=0,
+        eos_idx=trg_eos_idx, unk_idx=unk_idx)
+    trg_ivocab = {v: k for k, v in trg_vocab.items()}
+
+    logger.info("Started translation: ")
+    total_cost = 0.0
+
+    for i, line in enumerate(test_stream.get_epoch_iterator()):
+        seq = sutils._oov_to_unk(
+            line[0], exp_config['src_vocab_size'], unk_idx)
+        input_ = numpy.tile(seq, (exp_config['beam_size'], 1))
+
+        # draw sample, checking to ensure we don't get an empty string back
+        trans, costs = \
+            beam_search.search(
+                input_values={sampling_input: input_},
+                max_length=3*len(seq), eol_symbol=src_eos_idx,
+                ignore_first_eol=True)
+
+        # normalize costs according to the sequence lengths
+        if exp_config['normalized_bleu']:
+            lengths = numpy.array([len(s) for s in trans])
+            costs = costs / lengths
+
+        best = numpy.argsort(costs)[0]
+        try:
+            total_cost += costs[best]
+            trans_out = trans[best]
+
+            # convert idx to words
+            trans_out = sutils._idx_to_word(trans_out, trg_ivocab)
+
+        except ValueError:
+            logger.info("Can NOT find a translation for line: {}".format(i+1))
+            trans_out = '<UNK>'
+
+        ftrans.write(trans_out +'\n')
+
+        if i != 0 and i % 100 == 0:
+            logger.info("Translated {} lines of test set...".format(i))
+
+    logger.info("Saved translated output to: {}".format(ftrans.name))
+    logger.info("Total cost of the test: {}".format(total_cost))
+    ftrans.close()

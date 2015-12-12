@@ -150,14 +150,6 @@ class BleuValidator(SimpleExtension, SamplingBase):
         self.verbose = config.get('val_set_out', None)
 
         # Helpers
-        # When these are None, they get set in _evaluate_model
-        # Superclass - Sampler sets these alreay
-        if self.target_dataset is None:
-            self._initialize_dataset_info()
-        self.unk_sym = self.target_dataset.unk_token
-        self.eos_sym = self.target_dataset.eos_token
-        self.unk_idx = self.trg_vocab[self.unk_sym]
-        self.eos_idx = self.trg_vocab[self.eos_sym]
         self.best_models = []
         self.val_bleu_curve = []
         self.beam_search = BeamSearch(samples=samples)
@@ -198,6 +190,13 @@ class BleuValidator(SimpleExtension, SamplingBase):
         self._save_model(bleu_score)
 
     def _evaluate_model(self):
+        # Set in the superclass -- SamplingBase
+        if not hasattr(self, 'target_dataset'):
+            self._initialize_dataset_info()
+        self.unk_sym = self.target_dataset.unk_token
+        self.eos_sym = self.target_dataset.eos_token
+        self.unk_idx = self.trg_vocab[self.unk_sym]
+        self.eos_idx = self.trg_vocab[self.eos_sym]
 
         logger.info("Started Validation: ")
         val_start_time = time.time()

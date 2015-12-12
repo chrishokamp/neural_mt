@@ -40,26 +40,7 @@ class SamplingBase(object):
     def _idx_to_word(self, seq, ivocab):
         return " ".join([ivocab.get(idx, "<UNK>") for idx in seq])
 
-
-class Sampler(SimpleExtension, SamplingBase):
-    """Random Sampling from model."""
-
-    def __init__(self, model, data_stream, hook_samples=1, source_dataset=None, target_dataset=None,
-                 src_vocab=None, trg_vocab=None, src_ivocab=None,
-                 trg_ivocab=None, src_vocab_size=None, **kwargs):
-        super(Sampler, self).__init__(**kwargs)
-        self.model = model
-        self.hook_samples = hook_samples
-        self.source_dataset = source_dataset
-        self.target_dataset = target_dataset
-        self.data_stream = data_stream
-        self.src_vocab = src_vocab
-        self.trg_vocab = trg_vocab
-        self.src_ivocab = src_ivocab
-        self.trg_ivocab = trg_ivocab
-        self.src_vocab_size = src_vocab_size
-        self.is_synced = False
-
+    def _initialize_dataset_info(self):
         # Get dictionaries, this may not be the practical way
         sources = self._get_attr_rec(self.main_loop, 'data_stream')
 
@@ -81,7 +62,29 @@ class Sampler(SimpleExtension, SamplingBase):
         if not self.src_vocab_size:
             self.src_vocab_size = len(self.src_vocab)
 
+
+class Sampler(SimpleExtension, SamplingBase):
+    """Random Sampling from model."""
+
+    def __init__(self, model, data_stream, hook_samples=1, source_dataset=None, target_dataset=None,
+                 src_vocab=None, trg_vocab=None, src_ivocab=None,
+                 trg_ivocab=None, src_vocab_size=None, **kwargs):
+        super(Sampler, self).__init__(**kwargs)
+        self.model = model
+        self.hook_samples = hook_samples
+        # TODO: remove unused params from signature
+        # self.source_dataset = source_dataset
+        # self.target_dataset = target_dataset
+        # self.data_stream = data_stream
+        # self.src_vocab = src_vocab
+        # self.trg_vocab = trg_vocab
+        # self.src_ivocab = src_ivocab
+        # self.trg_ivocab = trg_ivocab
+        # self.src_vocab_size = src_vocab_size
+        self.is_synced = False
+
         self.sampling_fn = model.get_theano_function()
+
 
     def do(self, which_callback, *args):
 
@@ -149,6 +152,8 @@ class BleuValidator(SimpleExtension, SamplingBase):
         # Helpers
         # When these are None, they get set in _evaluate_model
         # Superclass - Sampler sets these alreay
+        if self.target_dataset is None:
+            self._initialize_dataset_info()
         self.unk_sym = self.target_dataset.unk_token
         self.eos_sym = self.target_dataset.eos_token
         self.unk_idx = self.trg_vocab[self.unk_sym]

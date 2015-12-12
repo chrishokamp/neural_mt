@@ -44,12 +44,14 @@ class SamplingBase(object):
 class Sampler(SimpleExtension, SamplingBase):
     """Random Sampling from model."""
 
-    def __init__(self, model, data_stream, hook_samples=1,
+    def __init__(self, model, data_stream, hook_samples=1, source_dataset=None, target_dataset=None,
                  src_vocab=None, trg_vocab=None, src_ivocab=None,
                  trg_ivocab=None, src_vocab_size=None, **kwargs):
         super(Sampler, self).__init__(**kwargs)
         self.model = model
         self.hook_samples = hook_samples
+        self.source_dataset = source_dataset
+        self.target_dataset = target_dataset
         self.data_stream = data_stream
         self.src_vocab = src_vocab
         self.trg_vocab = trg_vocab
@@ -67,10 +69,14 @@ class Sampler(SimpleExtension, SamplingBase):
         # Load vocabularies and invert if necessary
         # WARNING: Source and target indices from data stream
         #  can be different
+        if not self.source_dataset:
+            self.source_dataset = sources.data_streams[0].dataset
+        if not self.target_dataset:
+            self.target_dataset = sources.data_streams[1].dataset
         if not self.src_vocab:
-            self.src_vocab = sources.data_streams[0].dataset.dictionary
+            self.src_vocab = self.source_dataset.dictionary
         if not self.trg_vocab:
-            self.trg_vocab = sources.data_streams[1].dataset.dictionary
+            self.trg_vocab = self.target_dataset.dictionary
         if not self.src_ivocab:
             self.src_ivocab = {v: k for k, v in self.src_vocab.items()}
         if not self.trg_ivocab:
@@ -121,10 +127,11 @@ class Sampler(SimpleExtension, SamplingBase):
 
 class BleuValidator(SimpleExtension, SamplingBase):
     # TODO: a lot has been changed in NMT, sync respectively
+    # TODO: there is a mistake here when the source and target vocabulary sizes are different -- fix the ""Helpers" section below
     """Implements early stopping based on BLEU score."""
 
     def __init__(self, source_sentence, samples, model, data_stream,
-                 config, n_best=1, track_n_models=1, trg_ivocab=None,
+                 config, n_best=1, track_n_models=1,
                  normalize=True, **kwargs):
         # TODO: change config structure
         super(BleuValidator, self).__init__(**kwargs)
@@ -139,12 +146,12 @@ class BleuValidator(SimpleExtension, SamplingBase):
         self.verbose = config.get('val_set_out', None)
 
         # Helpers
-        self.vocab = data_stream.dataset.dictionary
-        self.trg_ivocab = trg_ivocab
-        self.unk_sym = data_stream.dataset.unk_token
-        self.eos_sym = data_stream.dataset.eos_token
-        self.unk_idx = self.vocab[self.unk_sym]
-        self.eos_idx = self.vocab[self.eos_sym]
+        # When these are None, they get set in _evaluate_model
+        # Superclass - Sampler sets these alreay
+        self.unk_sym = self.target_dataset.unk_token
+        self.eos_sym = self.target_dataset.eos_token
+        self.unk_idx = self.trg_vocab[self.unk_sym]
+        self.eos_idx = self.trg_vocab[self.eos_sym]
         self.best_models = []
         self.val_bleu_curve = []
         self.beam_search = BeamSearch(samples=samples)
@@ -190,12 +197,6 @@ class BleuValidator(SimpleExtension, SamplingBase):
         val_start_time = time.time()
         mb_subprocess = Popen(self.multibleu_cmd, stdin=PIPE, stdout=PIPE)
         total_cost = 0.0
-
-        # Get target vocabulary
-        if not self.trg_ivocab:
-            sources = self._get_attr_rec(self.main_loop, 'data_stream')
-            trg_vocab = sources.data_streams[1].dataset.dictionary
-            self.trg_ivocab = {v: k for k, v in trg_vocab.items()}
 
         if self.verbose:
             ftrans = open(self.config['val_set_out'], 'w')
@@ -294,7 +295,7 @@ class BleuValidator(SimpleExtension, SamplingBase):
             # Save the model here
             s = signal.signal(signal.SIGINT, signal.SIG_IGN)
             logger.info("Saving new model {}".format(model.path))
-            # WORKING -- use the save_parameter_values from checkpoint here
+
             SaveLoadUtils.save_parameter_values(self.main_loop.model.get_parameter_values(), model.path)
             numpy.savez(
                 os.path.join(self.config['saveto'], 'val_bleu_scores.npz'),

@@ -190,7 +190,6 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     main_loop.run()
 
 
-# WORKING -- make a prediction function which loads an existing model and waits for input on stdin
 def predict(exp_config):
 
     encoder = BidirectionalEncoder(
@@ -206,8 +205,9 @@ def predict(exp_config):
 
     # Get test set stream
     test_stream = get_dev_stream(
-    exp_config['test_set'], exp_config['src_vocab'],
-    exp_config['src_vocab_size'], exp_config['unk_id'])
+        exp_config['test_set'], exp_config['src_vocab'],
+        exp_config['src_vocab_size'], exp_config['unk_id'])
+
     ftrans = open(exp_config['test_set'] + '.trans.out', 'w')
 
     # Helper utilities
@@ -243,6 +243,7 @@ def predict(exp_config):
     logger.info("Started translation: ")
     total_cost = 0.0
 
+    # TODO: WORKING -- the model creation and prediction can be split into different functions
     for i, line in enumerate(test_stream.get_epoch_iterator()):
         seq = sutils._oov_to_unk(
             line[0], exp_config['src_vocab_size'], unk_idx)
@@ -252,7 +253,7 @@ def predict(exp_config):
         trans, costs = \
             beam_search.search(
                 input_values={sampling_input: input_},
-                max_length=3*len(seq), eol_symbol=src_eos_idx,
+                max_length=3*len(seq), eol_symbol=trg_eos_idx,
                 ignore_first_eol=True)
 
         # normalize costs according to the sequence lengths

@@ -59,9 +59,6 @@ class Sampler(SimpleExtension, SamplingBase):
         self.trg_ivocab = trg_ivocab
         self.src_vocab_size = src_vocab_size
         self.is_synced = False
-        self.sampling_fn = model.get_theano_function()
-
-    def do(self, which_callback, *args):
 
         # Get dictionaries, this may not be the practical way
         sources = self._get_attr_rec(self.main_loop, 'data_stream')
@@ -83,6 +80,10 @@ class Sampler(SimpleExtension, SamplingBase):
             self.trg_ivocab = {v: k for k, v in self.trg_vocab.items()}
         if not self.src_vocab_size:
             self.src_vocab_size = len(self.src_vocab)
+
+        self.sampling_fn = model.get_theano_function()
+
+    def do(self, which_callback, *args):
 
         # Randomly select source samples from the current batch
         # WARNING: Source and target indices from data stream

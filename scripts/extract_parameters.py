@@ -19,6 +19,7 @@ def extract_model_parameters(config):
     extract_dir = config['extract_dir']
 
     for param_name in model.keys():
+        # TODO: this interface needs to change for the new pickling format
         param_value = model[param_name][()].get_value()
         output_name = re.sub('/', '.', param_name) + '.npz'
         output_path = os.path.join(extract_dir, output_name)

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 # without needing to explicitly filter them
 theano.config.on_unused_input = 'warn'
 
+
 class SamplingBase(object):
     """Utility class for BleuValidator and Sampler."""
 
@@ -47,19 +48,19 @@ class SamplingBase(object):
         # Load vocabularies and invert if necessary
         # WARNING: Source and target indices from data stream
         #  can be different
-        if not self.source_dataset:
+        if not hasattr(self, 'source_dataset'):
             self.source_dataset = sources.data_streams[0].dataset
-        if not self.target_dataset:
+        if not hasattr(self, 'target_dataset'):
             self.target_dataset = sources.data_streams[1].dataset
-        if not self.src_vocab:
+        if not hasattr(self, 'src_vocab'):
             self.src_vocab = self.source_dataset.dictionary
-        if not self.trg_vocab:
+        if not hasattr(self, 'trg_vocab'):
             self.trg_vocab = self.target_dataset.dictionary
-        if not self.src_ivocab:
+        if not hasattr(self, 'src_ivocab'):
             self.src_ivocab = {v: k for k, v in self.src_vocab.items()}
-        if not self.trg_ivocab:
+        if not hasattr(self, 'trg_ivocab'):
             self.trg_ivocab = {v: k for k, v in self.trg_vocab.items()}
-        if not self.src_vocab_size:
+        if not hasattr(self, 'src_vocab_size'):
             self.src_vocab_size = len(self.src_vocab)
 
 

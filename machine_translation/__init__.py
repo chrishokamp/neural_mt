@@ -166,11 +166,19 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
 
     # Set up training algorithm
     logger.info("Initializing training algorithm")
-    algorithm = GradientDescent(
-        cost=cost, parameters=cg.parameters,
-        step_rule=CompositeRule([StepClipping(config['step_clipping']),
-                                 eval(config['step_rule'])()])
-    )
+    # if there is dropout or random noise, we need to use the output of the modified graph
+    if config['dropout'] < 1.0 or config['weight_noise_ff'] > 0.0:
+        algorithm = GradientDescent(
+            cost=cg.outputs[0], parameters=cg.parameters,
+            step_rule=CompositeRule([StepClipping(config['step_clipping']),
+                                     eval(config['step_rule'])()])
+        )
+    else:
+        algorithm = GradientDescent(
+            cost=cost, parameters=cg.parameters,
+            step_rule=CompositeRule([StepClipping(config['step_clipping']),
+                                     eval(config['step_rule'])()])
+        )
 
     # enrich the logged information
     extensions.append(

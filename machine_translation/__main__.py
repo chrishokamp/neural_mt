@@ -12,7 +12,7 @@ import pprint
 
 import configurations
 
-from machine_translation import main, predict
+from machine_translation import main, NMTPredictor
 from machine_translation.stream import get_tr_stream, get_dev_stream
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,12 @@ if __name__ == "__main__":
         main(config_obj, get_tr_stream(**config_obj),
              get_dev_stream(**config_obj), args.bokeh)
     elif mode == 'predict':
-        predict(config_obj)
+        predictor = NMTPredictor(config_obj)
+        predictor.predict_file(config_obj['test_set'], config_obj.get('translated_output_file', None))
+        # TODO: Testing only
+        # TODO: tokenize, preprocess, etc, etc
+        # predictor.predict_sentence
     elif mode == 'server':
+        # start restful server and log its port
         raise NotImplementedError
 

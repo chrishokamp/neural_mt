@@ -235,88 +235,124 @@ def load_params_and_get_beam_search(exp_config):
 
     return beam_search, sampling_input
 
+# def predict(exp_config):
 
-def predict(exp_config):
 
-    beam_search, sampling_input = load_params_and_get_beam_search(exp_config)
 
-    # Get test set stream
-    test_stream = get_dev_stream(
-        exp_config['test_set'], exp_config['src_vocab'],
-        exp_config['src_vocab_size'], exp_config['unk_id'])
+class NMTPredictor:
+    """"Uses a trained NMT model to do prediction"""
 
-    # TODO: move this to exp_config with default
-    if exp_config.get('translated_output_file', None) is not None:
-        ftrans = open(exp_config['translated_output_file'], 'w')
-    else:
-        ftrans = open(exp_config['test_set'] + '.trans.out', 'w')
-
-    # Helper utilities
     sutils = SamplingBase()
-    unk_idx = exp_config['unk_id']
 
-    # this index will get overwritten with the EOS token by _ensure_special_tokens
-    # IMPORTANT: the index must be created in the same way it was for training,
-    # otherwise the predicted indices will be nonsense
-    src_eos_idx = exp_config['src_vocab_size'] - 1
-    trg_eos_idx = exp_config['trg_vocab_size'] - 1
-    # Get target vocabulary
-    trg_vocab = _ensure_special_tokens(
-        pickle.load(open(exp_config['trg_vocab'])), bos_idx=0,
-        eos_idx=trg_eos_idx, unk_idx=unk_idx)
-    trg_ivocab = {v: k for k, v in trg_vocab.items()}
+    def __init__(self, exp_config):
 
-    src_vocab = _ensure_special_tokens(
-        pickle.load(open(exp_config['src_vocab'])), bos_idx=0,
-        eos_idx=src_eos_idx, unk_idx=unk_idx)
-    src_ivocab = {v: k for k, v in src_vocab.items()}
+        self.beam_search, self.sampling_input = load_params_and_get_beam_search(exp_config)
 
-    logger.info("Started translation: ")
-    total_cost = 0.0
+        self.exp_config = exp_config
 
-    # TODO: WORKING -- the model creation and prediction can be split into different functions
-    # TODO: WORKING -- this is prediction for a file -- support keeping the model in memory and using as client-server
-    for i, line in enumerate(test_stream.get_epoch_iterator()):
-        logger.info("Translating segment: {}".format(i))
-        seq = sutils._oov_to_unk(
-            line[0], exp_config['src_vocab_size'], unk_idx)
-        input_ = numpy.tile(seq, (exp_config['beam_size'], 1))
+        # this index will get overwritten with the EOS token by _ensure_special_tokens
+        # IMPORTANT: the index must be created in the same way it was for training,
+        # otherwise the predicted indices will be nonsense
+        self.src_eos_idx = exp_config['src_vocab_size'] - 1
+        self.trg_eos_idx = exp_config['trg_vocab_size'] - 1
+
+        self.unk_idx = exp_config['unk_id']
+        # Get target vocabulary
+        trg_vocab = _ensure_special_tokens(
+            pickle.load(open(exp_config['trg_vocab'])), bos_idx=0,
+            eos_idx=self.trg_eos_idx, unk_idx=self.unk_idx)
+        self.trg_ivocab = {v: k for k, v in trg_vocab.items()}
+
+        src_vocab = _ensure_special_tokens(
+            pickle.load(open(exp_config['src_vocab'])), bos_idx=0,
+            eos_idx=self.src_eos_idx, unk_idx=self.unk_idx)
+        self.src_ivocab = {v: k for k, v in src_vocab.items()}
+
+        self.unk_idx = self.unk_idx
+
+    def predict_file(self, input_file, output_file=None):
+
+        # Note this function calls _ensure_special_tokens before creating the stream
+        # This duplicates the work done by the _ensure_special_tokens in __init__
+        test_stream = get_dev_stream(
+            input_file, self.exp_config['src_vocab'],
+            self.exp_config['src_vocab_size'], self.unk_idx)
+
+        if output_file is not None:
+            ftrans = open(output_file, 'w')
+        else:
+            ftrans = open(input_file + '.trans.out', 'w')
+
+        logger.info("Started translation: ")
+        total_cost = 0.0
+
+        # TODO: WORKING -- this is prediction for a file -- support keeping the model in memory and using as client-server
+        for i, line in enumerate(test_stream.get_epoch_iterator()):
+            logger.info("Translating segment: {}".format(i))
+
+            # call predict_segment
+            # total_cost += costs[best]
+            # line is a tuple with a single item
+            trans_out, cost = self.predict_segment(line[0])
+
+            ftrans.write(trans_out + '\n')
+            total_cost += cost
+
+            if i != 0 and i % 100 == 0:
+                logger.info("Translated {} lines of test set...".format(i))
+
+        logger.info("Saved translated output to: {}".format(ftrans.name))
+        logger.info("Total cost of the test: {}".format(total_cost))
+        ftrans.close()
+
+    def predict_segment(self, segment):
+        """
+        Do prediction for a single segment, which is a list of token idxs
+
+        Parameters
+        ----------
+        segment: list[int] : a list of int indexes representing the input sequence in the source language
+
+        Returns
+        -------
+        trans_out: str : the best translation according to beam search
+        cost: float : the cost of the best translation
+
+        """
+
+        seq = NMTPredictor.sutils._oov_to_unk(
+            segment, self.exp_config['src_vocab_size'], self.unk_idx)
+        input_ = numpy.tile(seq, (self.exp_config['beam_size'], 1))
 
         # draw sample, checking to ensure we don't get an empty string back
         trans, costs = \
-            beam_search.search(
-                input_values={sampling_input: input_},
-                max_length=3*len(seq), eol_symbol=trg_eos_idx,
+            self.beam_search.search(
+                input_values={self.sampling_input: input_},
+                max_length=3*len(seq), eol_symbol=self.trg_eos_idx,
                 ignore_first_eol=True)
 
         # normalize costs according to the sequence lengths
-        if exp_config['normalized_bleu']:
+        if self.exp_config['normalized_bleu']:
             lengths = numpy.array([len(s) for s in trans])
             costs = costs / lengths
 
         best = numpy.argsort(costs)[0]
         try:
-            total_cost += costs[best]
             trans_out = trans[best]
+            cost = costs[best]
 
             # convert idx to words
             # `line` is a tuple with one item
-            src_in = sutils._idx_to_word(line[0], src_ivocab)
-            trans_out = sutils._idx_to_word(trans_out, trg_ivocab)
+            src_in = NMTPredictor.sutils._idx_to_word(segment, self.src_ivocab)
+            trans_out = NMTPredictor.sutils._idx_to_word(trans_out, self.trg_ivocab)
         # TODO: why would this error happen?
         except ValueError:
-            logger.info("Can NOT find a translation for line: {}".format(i+1))
+            logger.info("Can NOT find a translation for line: {}".format(src_in))
             trans_out = '<UNK>'
+            cost = 0.
 
         logger.info("Source: {}".format(src_in))
         logger.info("Target Hypothesis: {}".format(trans_out))
 
+        return trans_out, cost
 
-        ftrans.write(trans_out +'\n')
-
-        if i != 0 and i % 100 == 0:
-            logger.info("Translated {} lines of test set...".format(i))
-
-    logger.info("Saved translated output to: {}".format(ftrans.name))
-    logger.info("Total cost of the test: {}".format(total_cost))
-    ftrans.close()

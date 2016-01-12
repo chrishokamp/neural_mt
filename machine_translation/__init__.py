@@ -216,11 +216,19 @@ def predict(exp_config):
         exp_config['test_set'], exp_config['src_vocab'],
         exp_config['src_vocab_size'], exp_config['unk_id'])
 
-    ftrans = open(exp_config['test_set'] + '.trans.out', 'w')
+    # TODO: move this to exp_config with default
+    if exp_config.get('translated_output_file', None) is not None:
+        ftrans = open(exp_config['translated_output_file'], 'w')
+    else:
+        ftrans = open(exp_config['test_set'] + '.trans.out', 'w')
 
     # Helper utilities
     sutils = SamplingBase()
     unk_idx = exp_config['unk_id']
+
+    # this index will get overwritten with the EOS token by _ensure_special_tokens
+    # IMPORTANT: the index must be created in the same way it was for training,
+    # otherwise the predicted indices will be nonsense
     src_eos_idx = exp_config['src_vocab_size'] - 1
     trg_eos_idx = exp_config['trg_vocab_size'] - 1
 
@@ -248,11 +256,18 @@ def predict(exp_config):
         eos_idx=trg_eos_idx, unk_idx=unk_idx)
     trg_ivocab = {v: k for k, v in trg_vocab.items()}
 
+    src_vocab = _ensure_special_tokens(
+        pickle.load(open(exp_config['src_vocab'])), bos_idx=0,
+        eos_idx=src_eos_idx, unk_idx=unk_idx)
+    src_ivocab = {v: k for k, v in src_vocab.items()}
+
     logger.info("Started translation: ")
     total_cost = 0.0
 
     # TODO: WORKING -- the model creation and prediction can be split into different functions
+    # TODO: WORKING -- this is prediction for a file -- support keeping the model in memory and using as client-server
     for i, line in enumerate(test_stream.get_epoch_iterator()):
+        logger.info("Translating segment: {}".format(i))
         seq = sutils._oov_to_unk(
             line[0], exp_config['src_vocab_size'], unk_idx)
         input_ = numpy.tile(seq, (exp_config['beam_size'], 1))
@@ -275,11 +290,17 @@ def predict(exp_config):
             trans_out = trans[best]
 
             # convert idx to words
+            # `line` is a tuple with one item
+            src_in = sutils._idx_to_word(line[0], src_ivocab)
             trans_out = sutils._idx_to_word(trans_out, trg_ivocab)
-
+        # TODO: why would this error happen?
         except ValueError:
             logger.info("Can NOT find a translation for line: {}".format(i+1))
             trans_out = '<UNK>'
+
+        logger.info("Source: {}".format(src_in))
+        logger.info("Target Hypothesis: {}".format(trans_out))
+
 
         ftrans.write(trans_out +'\n')
 

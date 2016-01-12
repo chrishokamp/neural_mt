@@ -124,3 +124,6 @@
 
 # The location of a test set in the source language
 'test_set': !path_join [*DATADIR, 'newstest2013.small.en.tok']
+
+# Where to save the translated test set
+'translated_output_file': ~

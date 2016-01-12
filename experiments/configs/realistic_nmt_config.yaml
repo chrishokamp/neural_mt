@@ -123,3 +123,6 @@
 # The location of a test set in the source language
 'test_set': ~
 
+# Where to save the translated test set
+'translated_output_file': ~
+

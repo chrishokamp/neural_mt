@@ -198,7 +198,9 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     main_loop.run()
 
 
-def predict(exp_config):
+# WORKING: split into functions -- get_beam_search, predict sentence,
+# predict_and_save_file(beam_search, input_file, output_file=None)
+def load_params_and_get_beam_search(exp_config):
 
     encoder = BidirectionalEncoder(
         exp_config['src_vocab_size'], exp_config['enc_embed'], exp_config['enc_nhids'])
@@ -210,6 +212,33 @@ def predict(exp_config):
     # Create Theano variables
     logger.info('Creating theano variables')
     sampling_input = tensor.lmatrix('source')
+
+
+    # Get beam search
+    logger.info("Building sampling model")
+    sampling_representation = encoder.apply(
+        sampling_input, tensor.ones(sampling_input.shape))
+    generated = decoder.generate(sampling_input, sampling_representation)
+    _, samples = VariableFilter(
+        bricks=[decoder.sequence_generator], name="outputs")(
+                 ComputationGraph(generated[1]))  # generated[1] is next_outputs
+    beam_search = BeamSearch(samples=samples)
+
+    # Set the parameters
+    logger.info("Creating Model...")
+    model = Model(generated)
+    logger.info("Loading parameters from model: {}".format(exp_config['saveto']))
+
+    # load the parameter values from an .npz file
+    param_values = LoadNMT.load_parameter_values(exp_config['saved_parameters'])
+    LoadNMT.set_model_parameters(model, param_values)
+
+    return beam_search, sampling_input
+
+
+def predict(exp_config):
+
+    beam_search, sampling_input = load_params_and_get_beam_search(exp_config)
 
     # Get test set stream
     test_stream = get_dev_stream(
@@ -231,25 +260,6 @@ def predict(exp_config):
     # otherwise the predicted indices will be nonsense
     src_eos_idx = exp_config['src_vocab_size'] - 1
     trg_eos_idx = exp_config['trg_vocab_size'] - 1
-
-    # Get beam search
-    logger.info("Building sampling model")
-    sampling_representation = encoder.apply(
-        sampling_input, tensor.ones(sampling_input.shape))
-    generated = decoder.generate(sampling_input, sampling_representation)
-    _, samples = VariableFilter(
-        bricks=[decoder.sequence_generator], name="outputs")(
-                 ComputationGraph(generated[1]))  # generated[1] is next_outputs
-    beam_search = BeamSearch(samples=samples)
-
-    logger.info("Creating Model...")
-    model = Model(generated)
-    logger.info("Loading parameters from model: {}".format(exp_config['saveto']))
-
-    # load the parameter values from an .npz file
-    param_values = LoadNMT.load_parameter_values(exp_config['saved_parameters'])
-    LoadNMT.set_model_parameters(model, param_values)
-
     # Get target vocabulary
     trg_vocab = _ensure_special_tokens(
         pickle.load(open(exp_config['trg_vocab'])), bos_idx=0,

@@ -51,6 +51,9 @@ similar
 
 (3) Loading saved models and predicting 
 
+- make sure the neural_mt module is on your PYTHONPATH
+    export PYTHONPATH=$PYTHONPATH:<path_to_dir_containing_neural_mt>
+
 To run a server with a simple prediction demo, do:
 
     python -m machine_translation -m server <path_to_configuration_file>      

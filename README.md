@@ -57,6 +57,9 @@ similar
 To run a server with a simple prediction demo, do:
 
     python -m machine_translation -m server <path_to_configuration_file>      
+    
+You don't need a GPU for prediction, but you do want as many cores as you can spare (gpu should be somewhat faster). 
+Prediction with a large model took ~4sec per sentence on a 2012 machine with 8 older-generation i7 cores.
              
 
 

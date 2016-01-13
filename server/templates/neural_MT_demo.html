@@ -1,0 +1,22 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html lang="en">
+  <head></head>
+
+<body>
+
+<div id="intro">
+<h1>Neural MT Demo</h1>
+<p>Here you can test the Neural MT attention-based system.</p>
+</div>
+
+{% from "_formhelpers.html" import render_field %}
+
+<form method=post action="/neural_MT_demo">
+  <dl>
+    {{ form.sentence(rows=3, cols=60, placeholder='Type a sentence.') }}
+  </dl>
+  <p><input type="submit" name="translate" value="Translate!"></p>
+  <h2>Translated sentence</h2>
+  <p>{{ form.target_text }}</p>
+</body>
+</html>

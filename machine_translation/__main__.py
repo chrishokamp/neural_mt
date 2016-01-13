@@ -14,6 +14,7 @@ import configurations
 
 from machine_translation import main, NMTPredictor
 from machine_translation.stream import get_tr_stream, get_dev_stream
+from neural_mt.server import run_nmt_server
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,6 @@ parser.add_argument("-m", "--mode", default='train',
                     help="The mode we are in [train,predict,server] -- default=train")
 parser.add_argument("--bokeh",  default=False, action="store_true",
                     help="Use bokeh server for plotting")
-args = parser.parse_args()
-
 
 if __name__ == "__main__":
     # Get configurations for model
@@ -50,5 +49,7 @@ if __name__ == "__main__":
         # predictor.predict_sentence
     elif mode == 'server':
         # start restful server and log its port
-        raise NotImplementedError
+        predictor = NMTPredictor(config_obj)
+        run_nmt_server(predictor)
+
 

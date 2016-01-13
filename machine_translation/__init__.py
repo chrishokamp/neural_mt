@@ -257,16 +257,17 @@ class NMTPredictor:
         self.trg_eos_idx = exp_config['trg_vocab_size'] - 1
 
         self.unk_idx = exp_config['unk_id']
-        # Get target vocabulary
-        trg_vocab = _ensure_special_tokens(
-            pickle.load(open(exp_config['trg_vocab'])), bos_idx=0,
-            eos_idx=self.trg_eos_idx, unk_idx=self.unk_idx)
-        self.trg_ivocab = {v: k for k, v in trg_vocab.items()}
 
-        src_vocab = _ensure_special_tokens(
+        # Get vocabularies and inverse indices
+        self.src_vocab = _ensure_special_tokens(
             pickle.load(open(exp_config['src_vocab'])), bos_idx=0,
             eos_idx=self.src_eos_idx, unk_idx=self.unk_idx)
-        self.src_ivocab = {v: k for k, v in src_vocab.items()}
+        self.src_ivocab = {v: k for k, v in self.src_vocab.items()}
+        self.trg_vocab = _ensure_special_tokens(
+            pickle.load(open(exp_config['trg_vocab'])), bos_idx=0,
+            eos_idx=self.trg_eos_idx, unk_idx=self.unk_idx)
+        self.trg_ivocab = {v: k for k, v in self.trg_vocab.items()}
+
 
         self.unk_idx = self.unk_idx
 
@@ -343,6 +344,8 @@ class NMTPredictor:
 
             # convert idx to words
             # `line` is a tuple with one item
+            assert trans_out[-1] == self.trg_eos_idx, 'Target hypothesis should end with the EOS symbol'
+            trans_out = trans_out[:-1]
             src_in = NMTPredictor.sutils._idx_to_word(segment, self.src_ivocab)
             trans_out = NMTPredictor.sutils._idx_to_word(trans_out, self.trg_ivocab)
         # TODO: why would this error happen?

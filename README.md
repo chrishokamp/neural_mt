@@ -49,6 +49,14 @@ to your call
 When using remote machines it is useful to launch the jobs from byobu, tmux or
 similar
 
+(3) Loading saved models and predicting 
+
+To run a server with a simple prediction demo, do:
+
+    python -m machine_translation -m server <path_to_configuration_file>      
+             
+
+
 **Notes and Gotchas**
 
 - The `prepare_data.py` script tries to be smart about finding and extracting

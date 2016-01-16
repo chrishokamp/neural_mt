@@ -9,6 +9,7 @@ import urllib2
 import uuid
 
 from picklable_itertools.extras import equizip
+from preprocessing_utils import merge_parallel, split_parallel, shuffle_parallel
 
 TRAIN_DATA_URL = 'http://www.statmt.org/wmt15/training-parallel-nc-v10.tgz'
 VALID_DATA_URL = 'http://www.statmt.org/wmt15/dev-v2.tgz'
@@ -142,7 +143,7 @@ def tokenize_text_files(files_to_tokenize, tokenizer, threads=1):
         logger.info("...writing tokenized file [{}]".format(out_file))
 
         # we get the language for the tokenizer from the final element of the filename (after the last '.')
-	tokenizer_command = ["perl", tokenizer,  "-l",  name.split('.')[-1], "-threads",  str(threads), "-no-escape", "1"]
+        tokenizer_command = ["perl", tokenizer,  "-l", name.split('.')[-1], "-threads", str(threads), "-no-escape", "1"]
         if not os.path.exists(out_file):
             with open(name, 'r') as inp:
                 with open(out_file, 'w', 0) as out:
@@ -199,49 +200,6 @@ def create_vocabularies(tr_files, preprocess_file, source_vocab_file=None, targe
     return src_filename, trg_filename
 
 
-def merge_parallel(src_filename, trg_filename, merged_filename):
-    with open(src_filename, 'r') as left:
-        with open(trg_filename, 'r') as right:
-            with open(merged_filename, 'w') as final:
-                for lline, rline in equizip(left, right):
-                    if (lline != '\n') and (rline != '\n'):
-                        final.write(lline[:-1] + ' ||| ' + rline)
-
-
-def split_parallel(merged_filename, src_filename, trg_filename):
-    with open(merged_filename) as combined:
-        with open(src_filename, 'w') as left:
-            with open(trg_filename, 'w') as right:
-                for line in combined:
-                    line = line.split('|||')
-                    left.write(line[0].strip() + '\n')
-                    right.write(line[1].strip() + '\n')
-
-
-def shuffle_parallel(src_filename, trg_filename, temp_dir='./'):
-    logger.info("Shuffling jointly [{}] and [{}]".format(src_filename,
-                                                         trg_filename))
-    out_src = src_filename + '.shuf'
-    out_trg = trg_filename + '.shuf'
-    merged_filename = os.path.join(temp_dir,str(uuid.uuid4()))
-    shuffled_filename = os.path.join(temp_dir, str(uuid.uuid4()))
-    if not os.path.exists(out_src) or not os.path.exists(out_trg):
-        try:
-            merge_parallel(src_filename, trg_filename, merged_filename)
-            subprocess.check_call(
-                " shuf {} > {} ".format(merged_filename, shuffled_filename),
-                shell=True)
-            split_parallel(shuffled_filename, out_src, out_trg)
-            logger.info(
-                "...files shuffled [{}] and [{}]".format(out_src, out_trg))
-        except Exception as e:
-            logger.error("{}".format(str(e)))
-    else:
-        logger.info("...files exist [{}] and [{}]".format(out_src, out_trg))
-    if os.path.exists(merged_filename):
-        os.remove(merged_filename)
-    if os.path.exists(shuffled_filename):
-        os.remove(shuffled_filename)
 
 
 def main(arg_dict):

@@ -8,7 +8,6 @@ import tarfile
 import urllib2
 import uuid
 
-from picklable_itertools.extras import equizip
 from preprocessing_utils import merge_parallel, split_parallel, shuffle_parallel
 
 TRAIN_DATA_URL = 'http://www.statmt.org/wmt15/training-parallel-nc-v10.tgz'

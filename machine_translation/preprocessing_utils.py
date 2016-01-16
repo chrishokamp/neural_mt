@@ -2,6 +2,14 @@
 This module is named 'preprocessing_utils' instead of 'preprocessing' to avoid conflicting
 with the 'preprocessing' script in Groundhog
 """
+import os
+import uuid
+import subprocess
+import logging
+
+from picklable_itertools.extras import equizip
+
+logger = logging.getLogger(__name__)
 
 
 def merge_parallel(src_filename, trg_filename, merged_filename):
@@ -47,3 +55,6 @@ def shuffle_parallel(src_filename, trg_filename, temp_dir='./'):
         os.remove(merged_filename)
     if os.path.exists(shuffled_filename):
         os.remove(shuffled_filename)
+    return out_src, out_trg
+
+

@@ -41,7 +41,10 @@ def merge_dicts(dicts):
     # check that we have the right number of total keys
     assert len(merged.keys()) == num_new_keys + len(first_dict_keys)
     # check that we have unique values for all of the keys
-    assert len(set(merged.values())) == len(first_dict_keys) + num_new_keys
+
+    if len(set(merged.values())) != len(merged.keys()):
+        logger.warn('The total number of keys is: {}, but the total number of indexes is: {}'
+                    .format(merged.keys()), merged.values())
 
     return merged
 

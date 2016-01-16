@@ -45,7 +45,7 @@ def merge_dicts(dicts):
 
     if len(set(merged.values())) != len(merged.keys()):
         logger.warn('The total number of keys is: {}, but the total number of indexes is: {}'
-                    .format(merged.keys(), merged.values()))
+                    .format(len(merged.keys()), len(merged.values())))
 
     return merged
 

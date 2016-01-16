@@ -58,7 +58,7 @@ parser.add_argument("--prefix_dir", type=str, default='./share/nonbreaking_prefi
 parser.add_argument("--threads", type=int, default=1,
                     help="The number of threads available")
 parser.add_argument("--train_data", type=str, default=None,
-                    help="Optional path to user-specified training data in .tgz")
+                    help="Optional path to user-specified training data in .tgz, or a directory containing text files")
 parser.add_argument("--dev_data", type=str, default=None,
                     help="Optional path to user-specified dev data in .tgz (overrides source-dev and target-dev")
 parser.add_argument("--source_vocab_file", type=str, default=None,
@@ -121,7 +121,7 @@ def extract_tar(file_to_extract, extract_into, files_to_extract=None):
         # extract only source-target pair
         if item.name in files_to_extract:
             logger.info("Extracting file [{}] into [{}]"
-                .format(file_to_extract, extract_into))
+                        .format(file_to_extract, extract_into))
             file_path = os.path.join(extract_into, item.path)
             if not os.path.exists(file_path):
                 logger.info("...extracting [{}] into [{}]"
@@ -140,7 +140,9 @@ def tokenize_text_files(files_to_tokenize, tokenizer, threads=1):
         out_file = os.path.join(
             OUTPUT_DIR, os.path.basename(name) + '.tok')
         logger.info("...writing tokenized file [{}]".format(out_file))
-        var = ["perl", tokenizer,  "-l -threads {}".format(threads), name.split('.')[-1]]
+
+        # we get the language for the tokenizer from the final element of the filename (after the last '.')
+        var = ["perl", tokenizer,  "-l {} -threads {} -q - -no-escape 1".format(name.split('.')[-1], threads)]
         if not os.path.exists(out_file):
             with open(name, 'r') as inp:
                 with open(out_file, 'w', 0) as out:
@@ -271,6 +273,7 @@ def main(arg_dict):
     user_dev = arg_dict.get('dev_data', None)
     output_dir = arg_dict.get('data_dir')
 
+    # training data
     if user_train is None:
         train_data_file = os.path.join(OUTPUT_DIR, 'tmp', 'train_data.tgz')
         # Download the News Commentary v10 ~122Mb and extract it
@@ -282,27 +285,47 @@ def main(arg_dict):
     else:
         # use user data
         logger.info('Using training data at: {}'.format(user_train))
-        training_files = extract_tar(user_train, os.path.dirname(output_dir))
 
+        if user_train.endswith('.tgz'):
+            training_files = extract_tar(user_train, os.path.dirname(output_dir))
+        elif os.path.isdir(user_train):
+            training_files = [os.path.join(user_train, f) for f in os.listdir(user_train)]
+        else:
+            raise ValueError("you need to pass a .tgz file or a directory name as --train_data")
+
+    # dev data
     if user_dev is None:
-        valid_data_file = os.path.join(OUTPUT_DIR, 'tmp', 'valid_data.tgz')
+        valid_data_file = os.path.join(output_dir, 'tmp', 'valid_data.tgz')
         # Download development set and extract it
         download_and_write_file(VALID_DATA_URL, valid_data_file)
         valid_files_to_extract = find_lang_pair_files_in_tar(
             valid_data_file, [args.source_dev, args.target_dev])
         validation_files = extract_tar(valid_data_file, os.path.dirname(valid_data_file), valid_files_to_extract)
     else:
-        # use user's data
+        # use user's dev data
         logger.info('Using dev data at: {}'.format(user_dev))
-        validation_files = extract_tar(user_dev, os.path.dirname(output_dir))
+
+        if user_dev.endswith('.tgz'):
+            validation_files = extract_tar(user_dev, os.path.dirname(output_dir))
+        elif os.path.isdir(user_dev):
+            validation_files = [os.path.join(user_dev, f) for f in os.listdir(user_dev)]
+        else:
+            raise ValueError("you need to pass a .tgz file or a directory name as --dev_data")
 
     # Apply tokenizer
     threads = arg_dict.get('threads', 1)
+
+    # TODO: make each step optional
+
+    # step 1 - tokenize train and dev
+    # tokenize_text_files closes over OUTPUT_DIR, set in __main__ - same value as output_dir and args['data_dir']
     tokenize_text_files(training_files + validation_files, tokenizer_file, threads=threads)
 
+
+    # step 2 - create vocabularies from training data
     # Apply preprocessing and construct vocabularies
-    # TODO: this function does two things: (1) writes the vocabulary .pkls to disk, 2 returns the filenames
-    # TODO: the filenames already exist from the tokenization step, so they should be returned from there
+    # TODO: create_vocabularies does two things: (1) writes the vocabulary .pkls to disk, 2 returns the filenames
+    # TODO: the source and target filenames already exist from the tokenization step, so they should be returned from there
     # optional files to use for the vocab creation -- useful if you want to filter the MT vocab by the words contained
     # in another file
     src_vocab_file = arg_dict['source_vocab_file']
@@ -312,7 +335,7 @@ def main(arg_dict):
                                                      source_vocab_file=src_vocab_file,
                                                      target_vocab_file=tgt_vocab_file)
 
-    # Shuffle datasets
+    # step 3 - Shuffle the training datasets
     shuffle_parallel(os.path.join(OUTPUT_DIR, src_filename),
                      os.path.join(OUTPUT_DIR, trg_filename), temp_dir=OUTPUT_DIR)
 
@@ -322,7 +345,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger('prepare_data')
 
-    # Some of the functions close over args
+    # NOTE -- IMPORTANT: Some of the functions close over args
     args = parser.parse_args()
     arg_dict = vars(args)
     OUTPUT_DIR = arg_dict['data_dir']

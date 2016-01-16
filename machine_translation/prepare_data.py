@@ -142,12 +142,12 @@ def tokenize_text_files(files_to_tokenize, tokenizer, threads=1):
         logger.info("...writing tokenized file [{}]".format(out_file))
 
         # we get the language for the tokenizer from the final element of the filename (after the last '.')
-        var = ["perl", tokenizer,  "-l {} -threads {} -no-escape 1".format(name.split('.')[-1], threads)]
+	tokenizer_command = ["perl", tokenizer,  "-l",  name.split('.')[-1], "-threads",  str(threads), "-no-escape", "1"]
         if not os.path.exists(out_file):
             with open(name, 'r') as inp:
                 with open(out_file, 'w', 0) as out:
                     subprocess.check_call(
-                        var, stdin=inp, stdout=out, shell=False)
+                        tokenizer_command, stdin=inp, stdout=out, shell=False)
         else:
             logger.info("...file exists [{}]".format(out_file))
 

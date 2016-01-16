@@ -10,6 +10,7 @@ import argparse
 import logging
 import os
 
+logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser()

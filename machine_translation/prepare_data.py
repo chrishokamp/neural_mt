@@ -269,9 +269,12 @@ def main(arg_dict):
     download_and_write_file(TOKENIZER_PREFIXES + args.target,
                             target_prefix_file)
 
+    source_lang = arg_dict['source']
+    target_lang = arg_dict['target']
+
     user_train = arg_dict.get('train_data', None)
     user_dev = arg_dict.get('dev_data', None)
-    output_dir = arg_dict.get('data_dir')
+    output_dir = arg_dict['data_dir']
 
     # training data
     if user_train is None:
@@ -289,7 +292,8 @@ def main(arg_dict):
         if user_train.endswith('.tgz'):
             training_files = extract_tar(user_train, os.path.dirname(output_dir))
         elif os.path.isdir(user_train):
-            training_files = [os.path.join(user_train, f) for f in os.listdir(user_train)]
+            training_files = [os.path.join(user_train, f) for f in os.listdir(user_train)
+                              if f.endswith((source_lang, target_lang))]
         else:
             raise ValueError("you need to pass a .tgz file or a directory name as --train_data")
 
@@ -308,7 +312,8 @@ def main(arg_dict):
         if user_dev.endswith('.tgz'):
             validation_files = extract_tar(user_dev, os.path.dirname(output_dir))
         elif os.path.isdir(user_dev):
-            validation_files = [os.path.join(user_dev, f) for f in os.listdir(user_dev)]
+            validation_files = [os.path.join(user_dev, f) for f in os.listdir(user_dev)
+                                if f.endswith((source_lang, target_lang))]
         else:
             raise ValueError("you need to pass a .tgz file or a directory name as --dev_data")
 

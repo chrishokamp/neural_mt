@@ -37,7 +37,6 @@ def merge_dicts(dicts):
 
     merged = dicts[0]
     merged.update([(k,v) for k,v in zip(new_keys, range(max_value+1, max_value+num_new_keys+1))])
-    import ipdb;ipdb.set_trace()
 
     # check that we have the right number of total keys
     assert len(merged.keys()) == num_new_keys + len(first_dict_keys)

@@ -20,7 +20,9 @@ def extract_model_parameters(config):
 
     for param_name in model.keys():
         # TODO: this interface needs to change for the new pickling format
+	# TODO: the naming convention for blocks-internal pickling is also different -- they replace '/' with '-'
         param_value = model[param_name][()].get_value()
+        #param_value = model[param_name]
         output_name = re.sub('/', '.', param_name) + '.npz'
         output_path = os.path.join(extract_dir, output_name)
 

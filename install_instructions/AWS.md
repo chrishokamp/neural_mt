@@ -46,6 +46,7 @@ Start in line 43
     source .bashrc
 
 Install bleeding edge theano
+
     git clone git://github.com/Theano/Theano.git
     cd Theano
     python setup.py develop --user

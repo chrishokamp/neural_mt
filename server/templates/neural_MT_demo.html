@@ -1,13 +1,51 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
-<html lang="en">
-  <head></head>
+<html>
+  <head>
+    <title>%s</title>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
 
-<body>
+    <!-- Styles for this demo -->
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
 
-<div id="intro">
+    <!-- jQuery library -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+    <!-- Latest compiled JavaScript -->
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <style>
+      div.row textarea {width: %s;}
+    </style>
+  </head>
+  <body>
+    <div class="page-wrap">
+      <div class="container-fluid demo-nav">
+        <div class="row">
+          <div class="col-xs-12">
+            <nav>
+              <div class="pull-left">
+                <ol>
+                  <li>
+                    <a href="#" class="demo-nav-logo">
+                      <img src="{{ url_for('static', filename='unbabel_logo.svg') }}" alt="Unbabel Logo" />
+                    </a>
+                  </li>
+                </ol>
+              </div>
+              <div class="pull-right">
+              </div>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+
+
+
+<div id="intro" class="container">
 <h1>Neural MT Demo</h1>
 <p>Here you can test the Neural MT attention-based system.</p>
-</div>
 
 {% from "_formhelpers.html" import render_field %}
 
@@ -18,5 +56,57 @@
   <p><input type="submit" name="translate" value="Translate!"></p>
   <h2>Translated sentence</h2>
   <p>{{ form.target_text }}</p>
+
+</div>
+
+
+</div>
+<footer class="sticky-footer">
+  <div class="container">
+    <div class="row">
+      <div class="col-xs-12 col-sm-6">
+        <ol class="footer-line">
+          <li><a href="https://unbabel.com/about/">About</a></li>
+          <li><a href="https://unbabel.com/jobs/">Jobs</a></li>
+          <li><a href="http://help.unbabel.com/hc/en-us">Support</a></li>
+          <li><a href="https://www.dropbox.com/sh/205vav294qcof9p/AACDrKxhx79pAfQ8S0Wd0kS1a">Press</a></li>
+        </ol>
+        <ol class="footer-line">
+          <li><a href="https://blog.unbabel.com/">Blog</a></li>
+          <li><a href="http://help.unbabel.com/hc/en-us/community/posts">Forum</a></li>
+          <li><a href="https://unbabel.com/terms/">Terms of Service</a></li>
+        </ol>
+        <p class="footer-line">
+          2015 Unbabel, all rights reserved.
+        </p>
+      </div>
+      <div class="col-xs-12 col-sm-6">
+        <ol class="footer-social pull-right">
+          <li>Follow us on</li>
+          <li>
+            <a href="https://www.facebook.com/unbabel">
+              <img src="{{ url_for('static', filename='share_face.png') }}" alt="Facebook Logo" />
+            </a>
+          </li>
+          <li>
+            <a href="https://plus.google.com/103558317191139014676/posts">
+              <img src="{{ url_for('static', filename='share_gma.png') }}" alt="Google Plus Logo" />
+            </a>
+          </li>
+          <li>
+            <a href="https://twitter.com/theunbabel">
+              <img src="{{ url_for('static', filename='share_twi.png') }}" alt="Twitter Logo" />
+            </a>
+          </li>
+          <li>
+            <a href="https://www.linkedin.com/company/unbabel?trk=vsrp_companies_res_name&trkInfo=VSRPsearchId%3A263812621389301035838%2CVSRPtargetId%3A3327165%2CVSRPcmpt%3Aprimary">
+              <img src="{{ url_for('static', filename='share_lin.png') }}" alt="LinkedIn Logo" />
+            </a>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</footer>
 </body>
 </html>

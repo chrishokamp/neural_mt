@@ -32,11 +32,11 @@ def split_parallel(merged_filename, src_filename, trg_filename):
 
 
 def shuffle_parallel(src_filename, trg_filename, temp_dir='./'):
-    logger.info("Shuffling jointly [{}] and [{}]".format(src_filename,
-                                                         trg_filename))
+    logger.info("Shuffling {} and {} jointly in temporary dir: {}".format(src_filename,
+                                                         trg_filename, os.path.abspath(temp_dir)))
     out_src = src_filename + '.shuf'
     out_trg = trg_filename + '.shuf'
-    merged_filename = os.path.join(temp_dir,str(uuid.uuid4()))
+    merged_filename = os.path.join(temp_dir, str(uuid.uuid4()))
     shuffled_filename = os.path.join(temp_dir, str(uuid.uuid4()))
     if not os.path.exists(out_src) or not os.path.exists(out_trg):
         try:
@@ -46,7 +46,7 @@ def shuffle_parallel(src_filename, trg_filename, temp_dir='./'):
                 shell=True)
             split_parallel(shuffled_filename, out_src, out_trg)
             logger.info(
-                "...files shuffled [{}] and [{}]".format(out_src, out_trg))
+                "...files shuffled {} and {}".format(out_src, out_trg))
         except Exception as e:
             logger.error("{}".format(str(e)))
     else:
@@ -56,5 +56,3 @@ def shuffle_parallel(src_filename, trg_filename, temp_dir='./'):
     if os.path.exists(shuffled_filename):
         os.remove(shuffled_filename)
     return out_src, out_trg
-
-

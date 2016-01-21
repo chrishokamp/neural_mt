@@ -268,7 +268,6 @@ class NMTPredictor:
             eos_idx=self.trg_eos_idx, unk_idx=self.unk_idx)
         self.trg_ivocab = {v: k for k, v in self.trg_vocab.items()}
 
-
         self.unk_idx = self.unk_idx
 
     def predict_file(self, input_file, output_file=None):
@@ -287,7 +286,6 @@ class NMTPredictor:
         logger.info("Started translation: ")
         total_cost = 0.0
 
-        # TODO: WORKING -- this is prediction for a file -- support keeping the model in memory and using as client-server
         for i, line in enumerate(test_stream.get_epoch_iterator()):
             logger.info("Translating segment: {}".format(i))
 

@@ -6,9 +6,15 @@ Please see `prepare_data.py` for preprocessing configuration
    Machine Translation by Jointly Learning to Align and Translate.
 """
 
+from __future__ import print_function
 import argparse
 import logging
 import pprint
+import codecs
+import re
+import subprocess
+import time
+from subprocess import Popen, PIPE
 
 import configurations
 
@@ -44,9 +50,42 @@ if __name__ == "__main__":
     elif mode == 'predict':
         predictor = NMTPredictor(config_obj)
         predictor.predict_file(config_obj['test_set'], config_obj.get('translated_output_file', None))
-        # TODO: Testing only
-        # TODO: tokenize, preprocess, etc, etc
-        # predictor.predict_sentence
+    elif mode == 'evaluate':
+        logger.info("Started Evaluation: ")
+        val_start_time = time.time()
+        # TODO: support more evaluation metrics than just BLEU score
+        # translate, write output file, call external evaluation tools and show output
+        predictor = NMTPredictor(config_obj)
+        translated_output_file = predictor.predict_file(config_obj['test_set'], config_obj.get('translated_output_file', None))
+        logger.info('Translated output will be written to: {}'.format(translated_output_file))
+
+        # get gold refs
+        multibleu_cmd = ['perl', config_obj['bleu_script'],
+                         config_obj['test_gold_refs'], '<']
+
+        mb_subprocess = Popen(multibleu_cmd, stdin=PIPE, stdout=PIPE)
+
+        with codecs.open(translated_output_file, encoding='utf8') as hyps:
+            for l in hyps.read().strip().split('\n'):
+        #         # send the line to the BLEU script
+                print(l.encode('utf8'), file=mb_subprocess.stdin)
+
+        mb_subprocess.stdin.flush()
+
+        # send end of file, read output.
+        mb_subprocess.stdin.close()
+        stdout = mb_subprocess.stdout.readline()
+        logger.info(stdout)
+        out_parse = re.match(r'BLEU = [-.0-9]+', stdout)
+        logger.info("Validation Took: {} minutes".format(
+            float(time.time() - val_start_time) / 60.))
+        assert out_parse is not None
+
+        # extract the score
+        bleu_score = float(out_parse.group()[6:])
+        logger.info('BLEU SCORE: {}'.format(bleu_score))
+        mb_subprocess.terminate()
+
     elif mode == 'server':
         # start restful server and log its port
         predictor = NMTPredictor(config_obj)

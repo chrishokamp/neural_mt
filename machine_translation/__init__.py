@@ -198,8 +198,6 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     main_loop.run()
 
 
-# WORKING: split into functions -- get_beam_search, predict sentence,
-# predict_and_save_file(beam_search, input_file, output_file=None)
 def load_params_and_get_beam_search(exp_config):
 
     encoder = BidirectionalEncoder(
@@ -219,6 +217,7 @@ def load_params_and_get_beam_search(exp_config):
     sampling_representation = encoder.apply(
         sampling_input, tensor.ones(sampling_input.shape))
     generated = decoder.generate(sampling_input, sampling_representation)
+
     _, samples = VariableFilter(
         bricks=[decoder.sequence_generator], name="outputs")(
                  ComputationGraph(generated[1]))  # generated[1] is next_outputs
@@ -235,9 +234,6 @@ def load_params_and_get_beam_search(exp_config):
 
     return beam_search, sampling_input
 
-# def predict(exp_config):
-
-
 
 class NMTPredictor:
     """"Uses a trained NMT model to do prediction"""
@@ -253,6 +249,7 @@ class NMTPredictor:
         # this index will get overwritten with the EOS token by _ensure_special_tokens
         # IMPORTANT: the index must be created in the same way it was for training,
         # otherwise the predicted indices will be nonsense
+        # Make sure that src_vocab_size and trg_vocab_size are correct in your configuration
         self.src_eos_idx = exp_config['src_vocab_size'] - 1
         self.trg_eos_idx = exp_config['trg_vocab_size'] - 1
 
@@ -281,7 +278,9 @@ class NMTPredictor:
         if output_file is not None:
             ftrans = open(output_file, 'w')
         else:
-            ftrans = open(input_file + '.trans.out', 'w')
+            # cut off the language suffix to make output file name
+            output_file = '.'.join(input_file.split('.')[:-1]) + '.trans.out'
+            ftrans = open(output_file, 'w')
 
         logger.info("Started translation: ")
         total_cost = 0.0
@@ -303,6 +302,8 @@ class NMTPredictor:
         logger.info("Saved translated output to: {}".format(ftrans.name))
         logger.info("Total cost of the test: {}".format(total_cost))
         ftrans.close()
+
+        return output_file
 
     def predict_segment(self, segment):
         """

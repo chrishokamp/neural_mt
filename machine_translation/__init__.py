@@ -343,10 +343,16 @@ class NMTPredictor:
 
             # convert idx to words
             # `line` is a tuple with one item
-            assert trans_out[-1] == self.trg_eos_idx, 'Target hypothesis should end with the EOS symbol'
-            trans_out = trans_out[:-1]
-            src_in = NMTPredictor.sutils._idx_to_word(segment, self.src_ivocab)
-            trans_out = NMTPredictor.sutils._idx_to_word(trans_out, self.trg_ivocab)
+            try:
+                assert trans_out[-1] == self.trg_eos_idx, 'Target hypothesis should end with the EOS symbol'
+                trans_out = trans_out[:-1]
+                src_in = NMTPredictor.sutils._idx_to_word(segment, self.src_ivocab)
+                trans_out = NMTPredictor.sutils._idx_to_word(trans_out, self.trg_ivocab)
+            except AssertionError as e:
+                src_in = NMTPredictor.sutils._idx_to_word(segment, self.src_ivocab)
+                trans_out = NMTPredictor.sutils._idx_to_word(trans_out, self.trg_ivocab)
+                logger.error("ERROR: {} does not end with the EOS symbol".format(trans_out))
+                logger.error("I'm continuing anyway...")
         # TODO: why would this error happen?
         except ValueError:
             logger.info("Can NOT find a translation for line: {}".format(src_in))

@@ -12,7 +12,7 @@ import logging
 import pprint
 import codecs
 import re
-import subprocess
+import os
 import time
 from subprocess import Popen, PIPE
 
@@ -56,10 +56,21 @@ if __name__ == "__main__":
         logger.info("Started Evaluation: ")
         val_start_time = time.time()
         # TODO: support more evaluation metrics than just BLEU score
-        # translate, write output file, call external evaluation tools and show output
-        predictor = NMTPredictor(config_obj)
-        translated_output_file = predictor.predict_file(config_obj['test_set'], config_obj.get('translated_output_file', None))
-        logger.info('Translated output will be written to: {}'.format(translated_output_file))
+
+        # translate if necessary, write output file, call external evaluation tools and show output
+        translated_output_file = config_obj.get('translated_output_file', None)
+        if translated_output_file is not None:
+            if os.path.isfile(translated_output_file):
+                logger.info('{} already exists, so I\'m evaluating the BLEU score of this file with respect to the ' +
+                            'reference that you provided: {}'.format(translated_output_file,
+                                                                     config_obj['test_gold_refs']))
+        else:
+            predictor = NMTPredictor(config_obj)
+            logger.info('Translating: {}'.format(config_obj['test_set']))
+            translated_output_file = predictor.predict_file(config_obj['test_set'],
+                                                            translated_output_file)
+            logger.info('Translated: {}, output was written to: {}'.format(config_obj['test_set'],
+                                                                           translated_output_file))
 
         # get gold refs
         multibleu_cmd = ['perl', config_obj['bleu_script'],
@@ -69,7 +80,7 @@ if __name__ == "__main__":
 
         with codecs.open(translated_output_file, encoding='utf8') as hyps:
             for l in hyps.read().strip().split('\n'):
-        #         # send the line to the BLEU script
+                # send the line to the BLEU script
                 print(l.encode('utf8'), file=mb_subprocess.stdin)
 
         mb_subprocess.stdin.flush()

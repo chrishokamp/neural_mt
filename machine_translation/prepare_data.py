@@ -35,8 +35,8 @@ the preprocessing, moses tokenizer is applied first then tokenized corpora
 are used to extract vocabularies for source and target languages. Finally the
 tokenized parallel corpora are shuffled for SGD.
 
-Note that, this script is written specificaly for WMT15 training and
-development corpora, hence change the corresponding sections if you plan to use
+Note that the default behavior of this script is written specifically for
+the WMT15 training and development corpora, hence change the corresponding sections if you plan to use
 some other data.
 """, formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument("-s", "--source", type=str, help="Source language",

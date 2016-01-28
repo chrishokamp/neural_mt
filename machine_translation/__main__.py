@@ -14,7 +14,9 @@ import configurations
 
 from machine_translation import main, NMTPredictor
 from machine_translation.stream import get_tr_stream, get_dev_stream
-from neural_mt.server import run_nmt_server
+
+from ipdb import set_trace
+
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,11 @@ if __name__ == "__main__":
         # TODO: tokenize, preprocess, etc, etc
         # predictor.predict_sentence
     elif mode == 'server':
+
+        import sys
+        sys.path.append('.')
+        from server import run_nmt_server
+
         # start restful server and log its port
         predictor = NMTPredictor(config_obj)
         run_nmt_server(predictor)

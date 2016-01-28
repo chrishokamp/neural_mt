@@ -1,0 +1,8 @@
+ez_setup
+tables
+numpy
+checkpoint
+flask
+toolz
+wtforms
+yaml

@@ -1,0 +1,141 @@
+/* Styles for the Navbar */
+.demo-nav {
+    background-color: #2b3e50;
+    padding: 25px;
+}
+
+.demo-nav .pull-left {
+    padding-left: 10px;
+}
+
+.demo-nav .pull-right {
+    padding-right: 10px;
+}
+
+.demo-nav ol {
+    margin: 0px;
+    padding: 0px;
+    line-height: 50px;
+}
+
+.demo-nav li {
+    margin: 0px 8px;
+    margin-bottom: -8px;
+    list-style: none;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+
+.demo-nav .pull-left li:nth-child(1) {
+    margin-bottom: 0px;
+}
+
+.demo-nav a {
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-family: 'Open Sans', sans-serif;
+    font-weight: bold;
+    font-size: 13px;
+    color: white;
+}
+
+.demo-nav a:hover {
+    background-color: #1aace6;
+    text-decoration: none;
+}
+
+.demo-nav .demo-nav-logo:hover {
+    background-color: transparent;
+}
+
+.demo-nav-logo img {
+    width: 180px;
+    height: auto;
+}
+
+/* Styles for the footer */
+
+footer {
+    padding-top: 40px;
+    background-color: #2b3e50;
+    color: #577ea5;
+    font-family: 'Open Sans', sans-serif;
+}
+
+footer ol {
+    margin: 0px;
+    padding: 0px;
+}
+
+footer li {
+    list-style: none;
+    display: inline-block;
+}
+
+footer a {
+    color: #577ea5;
+    font-size: 14px;
+}
+
+footer a:hover {
+    color: #577ea5;
+}
+
+footer li {
+    margin-left: 15px;
+}
+
+footer li:nth-child(1) {
+    margin-left: 0px;
+}
+
+.footer-line {
+    margin-bottom: 10px;
+}
+
+.footer-line:nth-child(1) a {
+    font-weight: 700;
+}
+
+.footer-line:nth-child(2) a {
+    font-size: 12px;
+}
+
+.footer-line:nth-child(3) {
+    font-size: 11px;
+}
+
+.footer-social li {
+    font-size: 12px;
+    margin-left: 0px;
+    margin-right: 1px;
+}
+
+.footer-social li:nth-child(1) {
+    margin-right: 8px;
+}
+
+.footer-social li:last-child {
+    margin-right: 0px;
+}
+
+/* Styles for the Sticky Footer */
+* {
+  margin: 0;
+}
+html, body {
+  height: 100%;
+}
+.page-wrap {
+  min-height: 100%;
+  /* equal to footer height */
+  margin-bottom: -182px;
+}
+.page-wrap:after {
+  content: "";
+  display: block;
+}
+.sticky-footer, .page-wrap:after {
+  height: 182px;
+}

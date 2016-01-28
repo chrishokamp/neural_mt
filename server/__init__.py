@@ -45,7 +45,7 @@ def neural_mt_demo():
         logger.info('Acquired lock')
         lock.acquire()
 
-        source_sentence = source_text
+        source_sentence = source_text.encode('utf-8')
         tokenizer = Popen(app.tokenizer_cmd, stdin=PIPE, stdout=PIPE)
         sentence, _ = tokenizer.communicate(source_sentence)
         logger.info('original source: {}'.format(source_sentence))
@@ -79,5 +79,5 @@ def run_nmt_server(predictor, port=5000):
 
     logger.info('Server starting on port: {}'.format(port))
     logger.info('navigate to: http://localhost:{}/neural_MT_demo to see the system demo'.format(port))
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    app.run(debug=True, port=port, host='127.0.0.1')
 

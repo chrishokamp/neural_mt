@@ -211,7 +211,6 @@ def load_params_and_get_beam_search(exp_config):
     logger.info('Creating theano variables')
     sampling_input = tensor.lmatrix('source')
 
-
     # Get beam search
     logger.info("Building sampling model")
     sampling_representation = encoder.apply(
@@ -288,10 +287,12 @@ class NMTPredictor:
         for i, line in enumerate(test_stream.get_epoch_iterator()):
             logger.info("Translating segment: {}".format(i))
 
-            # call predict_segment
-            # total_cost += costs[best]
             # line is a tuple with a single item
-            trans_out, cost = self.predict_segment(line[0])
+            translations, costs = self.predict_segment(line[0])
+
+            # predict_segment returns a list of hyps, we just take the best one
+            trans_out = translations[0]
+            cost = costs[0]
 
             ftrans.write(trans_out + '\n')
             total_cost += cost
@@ -305,13 +306,14 @@ class NMTPredictor:
 
         return output_file
 
-    def predict_segment(self, segment):
+    def predict_segment(self, segment, n_best=1):
         """
         Do prediction for a single segment, which is a list of token idxs
 
         Parameters
         ----------
         segment: list[int] : a list of int indexes representing the input sequence in the source language
+        n_best: int : how many hypotheses to return (must be <= beam_size)
 
         Returns
         -------
@@ -336,31 +338,37 @@ class NMTPredictor:
             lengths = numpy.array([len(s) for s in trans])
             costs = costs / lengths
 
-        best = numpy.argsort(costs)[0]
-        try:
-            trans_out = trans[best]
-            cost = costs[best]
-
-            # convert idx to words
-            # `line` is a tuple with one item
+        best_n_hyps = []
+        best_n_costs = []
+        best_n_idxs = numpy.argsort(costs)[:n_best]
+        for j, idx in enumerate(best_n_idxs):
             try:
-                assert trans_out[-1] == self.trg_eos_idx, 'Target hypothesis should end with the EOS symbol'
-                trans_out = trans_out[:-1]
-                src_in = NMTPredictor.sutils._idx_to_word(segment, self.src_ivocab)
-                trans_out = NMTPredictor.sutils._idx_to_word(trans_out, self.trg_ivocab)
-            except AssertionError as e:
-                src_in = NMTPredictor.sutils._idx_to_word(segment, self.src_ivocab)
-                trans_out = NMTPredictor.sutils._idx_to_word(trans_out, self.trg_ivocab)
-                logger.error("ERROR: {} does not end with the EOS symbol".format(trans_out))
-                logger.error("I'm continuing anyway...")
-        # TODO: why would this error happen?
-        except ValueError:
-            logger.info("Can NOT find a translation for line: {}".format(src_in))
-            trans_out = '<UNK>'
-            cost = 0.
+                trans_out = trans[idx]
+                cost = costs[idx]
 
-        logger.info("Source: {}".format(src_in))
-        logger.info("Target Hypothesis: {}".format(trans_out))
+                # convert idx to words
+                # `line` is a tuple with one item
+                try:
+                    assert trans_out[-1] == self.trg_eos_idx, 'Target hypothesis should end with the EOS symbol'
+                    trans_out = trans_out[:-1]
+                    src_in = NMTPredictor.sutils._idx_to_word(segment, self.src_ivocab)
+                    trans_out = NMTPredictor.sutils._idx_to_word(trans_out, self.trg_ivocab)
+                except AssertionError as e:
+                    src_in = NMTPredictor.sutils._idx_to_word(segment, self.src_ivocab)
+                    trans_out = NMTPredictor.sutils._idx_to_word(trans_out, self.trg_ivocab)
+                    logger.error("ERROR: {} does not end with the EOS symbol".format(trans_out))
+                    logger.error("I'm continuing anyway...")
+            # TODO: why would this error happen?
+            except ValueError:
+                logger.info("Can NOT find a translation for line: {}".format(src_in))
+                trans_out = '<UNK>'
+                cost = 0.
 
-        return trans_out, cost
+            logger.info("Source: {}".format(src_in))
+            logger.info("Target Hypothesis: {}".format(trans_out))
+
+            best_n_hyps.append(trans_out)
+            best_n_costs.append(cost)
+
+        return best_n_hyps, best_n_costs
 

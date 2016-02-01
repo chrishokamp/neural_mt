@@ -57,15 +57,19 @@ def neural_mt_demo():
         mapped_sentence += [app.predictor.src_eos_idx]
         logger.info('mapped source: {}'.format(mapped_sentence))
 
-        translation, cost = app.predictor.predict_segment(mapped_sentence)
-        logger.info('raw translation: {}'.format(translation))
+        # WORKING: support n-best
+        output_text = ''
+        translations, costs = app.predictor.predict_segment(mapped_sentence, n_best=1)
+        for hyp in translations:
+            logger.info('raw translation: {}'.format(hyp))
 
-        # detokenize the translation
-        detokenizer=Popen(app.detokenizer_cmd, stdin=PIPE, stdout=PIPE)
-        detokenized_sentence, _ = detokenizer.communicate(translation)
+            # detokenize the translation
+            detokenizer = Popen(app.detokenizer_cmd, stdin=PIPE, stdout=PIPE)
+            detokenized_sentence, _ = detokenizer.communicate(hyp)
+            output_text += detokenized_sentence + '\n'
 
-        form.target_text = detokenized_sentence.decode('utf-8')
-        logger.info('detokenized translation: {}'.format(detokenized_sentence))
+        form.target_text = output_text.decode('utf-8')
+        logger.info('detokenized translations:\n {}'.format(output_text))
 
         print "Lock release"
         lock.release()

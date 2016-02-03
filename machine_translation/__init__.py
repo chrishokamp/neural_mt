@@ -4,8 +4,9 @@ from collections import Counter
 from theano import tensor
 from toolz import merge
 import numpy
-import os
 import pickle
+from subprocess import Popen, PIPE
+import codecs
 
 from blocks.algorithms import (GradientDescent, StepClipping, AdaDelta,
                                CompositeRule)
@@ -244,6 +245,20 @@ class NMTPredictor:
         self.beam_search, self.sampling_input = load_params_and_get_beam_search(exp_config)
 
         self.exp_config = exp_config
+        # how many hyps should be output (only used in file prediction mode)
+        self.n_best = exp_config.get('n_best', 1)
+
+        self.source_lang = exp_config.get('source_lang', 'en')
+        self.target_lang = exp_config.get('target_lang', 'es')
+
+        tokenize_script = exp_config.get('tokenize_script', None)
+        detokenize_script = exp_config.get('detokenize_script', None)
+        if tokenize_script is not None and detokenize_script is not None:
+            self.tokenizer_cmd = [tokenize_script, '-l', self.source_lang, '-q', '-', '-no-escape', '1']
+            self.detokenizer_cmd = [detokenize_script, '-l', self.target_lang, '-q', '-']
+        else:
+            self.tokenizer_cmd = None
+            self.detokenizer_cmd = None
 
         # this index will get overwritten with the EOS token by _ensure_special_tokens
         # IMPORTANT: the index must be created in the same way it was for training,
@@ -266,13 +281,14 @@ class NMTPredictor:
 
         self.unk_idx = self.unk_idx
 
-    def predict_file(self, input_file, output_file=None):
+    def map_idx_or_unk(self, sentence, index, unknown_token='<UNK>'):
+        if type(sentence) is str:
+            sentence = sentence.split()
+        return [index.get(w, unknown_token) for w in sentence]
 
-        # Note this function calls _ensure_special_tokens before creating the stream
-        # This duplicates the work done by the _ensure_special_tokens in __init__
-        test_stream = get_dev_stream(
-            input_file, self.exp_config['src_vocab'],
-            self.exp_config['src_vocab_size'], self.unk_idx)
+    def predict_file(self, input_file, output_file=None):
+        tokenize = self.tokenizer_cmd is not None
+        detokenize = self.detokenizer_cmd is not None
 
         if output_file is not None:
             ftrans = open(output_file, 'w')
@@ -281,24 +297,31 @@ class NMTPredictor:
             output_file = '.'.join(input_file.split('.')[:-1]) + '.trans.out'
             ftrans = open(output_file, 'w')
 
-        logger.info("Started translation: ")
+        logger.info("Started translation, will output {} translations for each segment"
+                    .format(self.n_best))
         total_cost = 0.0
 
-        for i, line in enumerate(test_stream.get_epoch_iterator()):
-            logger.info("Translating segment: {}".format(i))
+        with codecs.open(input_file, encoding='utf8') as inp:
+            for i, line in enumerate(inp.read().strip().split('\n')):
+                logger.info("Translating segment: {}".format(i))
 
-            # line is a tuple with a single item
-            translations, costs = self.predict_segment(line[0])
+                translations, costs = self.predict_segment(line, n_best=self.n_best,
+                                                           tokenize=tokenize, detokenize=detokenize)
 
-            # predict_segment returns a list of hyps, we just take the best one
-            trans_out = translations[0]
-            cost = costs[0]
+                # predict_segment returns a list of hyps, we just take the best one
+                nbest_translations = translations[:self.n_best]
+                nbest_costs = costs[:self.n_best]
 
-            ftrans.write(trans_out + '\n')
-            total_cost += cost
+                if self.n_best == 1:
+                    ftrans.write(nbest_translations[0] + '\n')
+                    total_cost += nbest_costs[0]
+                else:
+                    # one blank line to separate each nbest list
+                    ftrans.write('\n'.join(nbest_translations) + '\n\n')
+                    total_cost += sum(nbest_costs)
 
-            if i != 0 and i % 100 == 0:
-                logger.info("Translated {} lines of test set...".format(i))
+                if i != 0 and i % 100 == 0:
+                    logger.info("Translated {} lines of test set...".format(i))
 
         logger.info("Saved translated output to: {}".format(ftrans.name))
         logger.info("Total cost of the test: {}".format(total_cost))
@@ -306,7 +329,7 @@ class NMTPredictor:
 
         return output_file
 
-    def predict_segment(self, segment, n_best=1):
+    def predict_segment(self, segment, n_best=1, tokenize=False, detokenize=False):
         """
         Do prediction for a single segment, which is a list of token idxs
 
@@ -314,6 +337,8 @@ class NMTPredictor:
         ----------
         segment: list[int] : a list of int indexes representing the input sequence in the source language
         n_best: int : how many hypotheses to return (must be <= beam_size)
+        tokenize: bool : does the source segment need to be tokenized first?
+        detokenize: bool : do the output hypotheses need to be detokenized?
 
         Returns
         -------
@@ -321,6 +346,13 @@ class NMTPredictor:
         cost: float : the cost of the best translation
 
         """
+
+        if tokenize:
+            tokenizer = Popen(self.tokenizer_cmd, stdin=PIPE, stdout=PIPE)
+            segment, _ = tokenizer.communicate(segment)
+
+        segment = self.map_idx_or_unk(segment, self.src_vocab, self.unk_idx)
+        segment += [self.src_eos_idx]
 
         seq = NMTPredictor.sutils._oov_to_unk(
             segment, self.exp_config['src_vocab_size'], self.unk_idx)
@@ -363,6 +395,13 @@ class NMTPredictor:
                 logger.info("Can NOT find a translation for line: {}".format(src_in))
                 trans_out = '<UNK>'
                 cost = 0.
+
+            if detokenize:
+                detokenizer = Popen(self.detokenizer_cmd, stdin=PIPE, stdout=PIPE)
+                trans_out, _ = detokenizer.communicate(trans_out)
+                # strip off the eol symbol
+                trans_out = trans_out.strip()
+
 
             logger.info("Source: {}".format(src_in))
             logger.info("Target Hypothesis: {}".format(trans_out))

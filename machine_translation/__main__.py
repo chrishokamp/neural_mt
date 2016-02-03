@@ -21,9 +21,6 @@ import configurations
 from machine_translation import main, NMTPredictor
 from machine_translation.stream import get_tr_stream, get_dev_stream
 
-from ipdb import set_trace
-
-
 logger = logging.getLogger(__name__)
 
 # Get the arguments

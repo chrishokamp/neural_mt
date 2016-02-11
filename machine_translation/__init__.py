@@ -291,17 +291,19 @@ class NMTPredictor:
         detokenize = self.detokenizer_cmd is not None
 
         if output_file is not None:
-            ftrans = open(output_file, 'w')
+            ftrans = codecs.open(output_file, 'wb', encoding='utf8')
         else:
             # cut off the language suffix to make output file name
             output_file = '.'.join(input_file.split('.')[:-1]) + '.trans.out'
-            ftrans = open(output_file, 'w')
+            ftrans = codecs.open(output_file, 'wb', encoding='utf8')
 
         logger.info("Started translation, will output {} translations for each segment"
                     .format(self.n_best))
         total_cost = 0.0
 
-        with codecs.open(input_file, encoding='utf8') as inp:
+        # TODO: the tokenizer throws an error when the input file is opened with encoding='utf8'
+        # why would this happen?
+        with codecs.open(input_file) as inp:
             for i, line in enumerate(inp.read().strip().split('\n')):
                 logger.info("Translating segment: {}".format(i))
 
@@ -313,7 +315,7 @@ class NMTPredictor:
                 nbest_costs = costs[:self.n_best]
 
                 if self.n_best == 1:
-                    ftrans.write(nbest_translations[0] + '\n')
+                    ftrans.write((nbest_translations[0] + '\n').decode('utf8'))
                     total_cost += nbest_costs[0]
                 else:
                     # one blank line to separate each nbest list
@@ -346,6 +348,7 @@ class NMTPredictor:
         cost: float : the cost of the best translation
 
         """
+
 
         if tokenize:
             tokenizer = Popen(self.tokenizer_cmd, stdin=PIPE, stdout=PIPE)
@@ -402,6 +405,8 @@ class NMTPredictor:
                 # strip off the eol symbol
                 trans_out = trans_out.strip()
 
+            # TODO: remove this quick hack
+            trans_out = trans_out.replace('<UNK>', 'UNK')
 
             logger.info("Source: {}".format(src_in))
             logger.info("Target Hypothesis: {}".format(trans_out))

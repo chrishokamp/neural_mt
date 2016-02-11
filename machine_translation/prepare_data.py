@@ -60,7 +60,8 @@ parser.add_argument("--threads", type=int, default=1,
 parser.add_argument("--train_data", type=str, default=None,
                     help="Optional path to user-specified training data in .tgz, or a directory containing text files")
 parser.add_argument("--dev_data", type=str, default=None,
-                    help="Optional path to user-specified dev data in .tgz (overrides source-dev and target-dev")
+                    help="Optional path to user-specified dev data in .tgz, or a directory containing text files " +
+                         "(overrides source-dev and target-dev).")
 parser.add_argument("--source_vocab_file", type=str, default=None,
                     help="Optional path to a file to use to create the source vocabulary")
 parser.add_argument("--target_vocab_file", type=str, default=None,

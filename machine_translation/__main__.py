@@ -21,6 +21,7 @@ import configurations
 from machine_translation import main, NMTPredictor
 from machine_translation.stream import get_tr_stream, get_dev_stream
 
+logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 # Get the arguments
@@ -56,8 +57,7 @@ if __name__ == "__main__":
 
         # translate if necessary, write output file, call external evaluation tools and show output
         translated_output_file = config_obj.get('translated_output_file', None)
-        if translated_output_file is not None:
-            if os.path.isfile(translated_output_file):
+        if translated_output_file is not None and os.path.isfile(translated_output_file):
                 logger.info('{} already exists, so I\'m evaluating the BLEU score of this file with respect to the ' +
                             'reference that you provided: {}'.format(translated_output_file,
                                                                      config_obj['test_gold_refs']))

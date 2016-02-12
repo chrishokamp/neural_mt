@@ -8,7 +8,7 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-f', '--files', nargs='2', help='two text files of the same length to jointly shuffle',
+parser.add_argument('-f', '--files', nargs='+', help='two text files of the same length to jointly shuffle',
                     required=True)
 parser.add_argument('--temp_dir', type=str, default='./',
                     help='(Optional) temp directory where intermediate files will be stored')

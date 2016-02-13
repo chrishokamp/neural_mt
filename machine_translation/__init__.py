@@ -163,7 +163,7 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     # Plot cost in bokeh if necessary
     if use_bokeh and BOKEH_AVAILABLE:
         extensions.append(
-            Plot('NMT Experiment', channels=[['decoder_cost_cost']],
+            Plot('NMT Experiment', channels=[['decoder_cost_cost'], ['validation_set_bleu_score']],
                  every_n_batches=10))
 
     # Set up training algorithm

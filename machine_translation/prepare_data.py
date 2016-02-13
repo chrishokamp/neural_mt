@@ -168,6 +168,7 @@ def create_vocabularies(tr_files, preprocess_file, source_vocab_file=None, targe
         OUTPUT_DIR, 'vocab.{}-{}.{}.pkl'.format(
             args.source, args.target, args.target))
 
+    # note that the files are required to end in <LANG_CODE>.tok -- eventually we should make this more flexible
     src_filename = os.path.basename(
         tr_files[[i for i, n in enumerate(tr_files)
                   if n.endswith(args.source)][0]]) + '.tok'

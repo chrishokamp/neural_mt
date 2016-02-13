@@ -19,7 +19,7 @@ from blocks.main_loop import MainLoop
 from blocks.model import Model
 from blocks.select import Selector
 from blocks.search import BeamSearch
-
+from blocks_extras.extensions.plot import Plot
 
 from machine_translation.checkpoint import CheckpointNMT, LoadNMT
 from machine_translation.model import BidirectionalEncoder, Decoder
@@ -28,7 +28,7 @@ from machine_translation.stream import (get_tr_stream, get_dev_stream,
                                         _ensure_special_tokens)
 
 try:
-    from blocks.extras.extensions.plot import Plot
+    from blocks_extras.extensions.plot import Plot
     BOKEH_AVAILABLE = True
 except ImportError:
     BOKEH_AVAILABLE = False
@@ -125,6 +125,7 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
                       every_n_batches=config['save_freq'])
     ]
 
+
     # Set up beam search and sampling computation graphs if necessary
     if config['hook_samples'] >= 1 or config['bleu_script'] is not None:
         logger.info("Building sampling model")
@@ -162,8 +163,8 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     # Plot cost in bokeh if necessary
     if use_bokeh and BOKEH_AVAILABLE:
         extensions.append(
-            Plot('Cs-En', channels=[['decoder_cost_cost']],
-                 after_batch=True))
+            Plot('NMT Experiment', channels=[['decoder_cost_cost']],
+                 every_n_batches=10))
 
     # Set up training algorithm
     logger.info("Initializing training algorithm")

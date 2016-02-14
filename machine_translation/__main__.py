@@ -41,6 +41,8 @@ if __name__ == "__main__":
     mode = arg_dict['mode']
     logger.info('Running Neural Machine Translation in mode: {}'.format(mode))
     config_obj = configurations.get_config(configuration_file)
+    # add the config file name into config_obj
+    config_obj['config_file'] = configuration_file
     logger.info("Model options:\n{}".format(pprint.pformat(config_obj)))
 
     if mode == 'train':

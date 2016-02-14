@@ -1,5 +1,7 @@
 import logging
 
+import os
+import shutil
 from collections import Counter
 from theano import tensor
 from toolz import merge
@@ -8,8 +10,8 @@ import pickle
 from subprocess import Popen, PIPE
 import codecs
 
-from blocks.algorithms import (GradientDescent, StepClipping, AdaDelta,
-                               CompositeRule)
+from blocks.algorithms import (GradientDescent, StepClipping,
+                               CompositeRule, Adam, AdaDelta)
 from blocks.extensions import FinishAfter, Printing, Timing
 from blocks.extensions.monitoring import TrainingDataMonitoring
 from blocks.filter import VariableFilter
@@ -115,6 +117,11 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     logger.info("Building model")
     training_model = Model(cost)
 
+    # create the training directory, and copy this config there if directory doesn't exist
+    if not os.path.isdir(config['saveto']):
+        os.makedirs(config['saveto'])
+        shutil.copy(config['config_file'], config['saveto'])
+
     # Set extensions
     logger.info("Initializing extensions")
     extensions = [
@@ -127,6 +134,7 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
 
 
     # Set up beam search and sampling computation graphs if necessary
+
     if config['hook_samples'] >= 1 or config['bleu_script'] is not None:
         logger.info("Building sampling model")
         sampling_representation = encoder.apply(

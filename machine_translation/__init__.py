@@ -235,7 +235,7 @@ def load_params_and_get_beam_search(exp_config):
     # Set the parameters
     logger.info("Creating Model...")
     model = Model(generated)
-    logger.info("Loading parameters from model: {}".format(exp_config['saveto']))
+    logger.info("Loading parameters from model: {}".format(exp_config['saved_parameters']))
 
     # load the parameter values from an .npz file
     param_values = LoadNMT.load_parameter_values(exp_config['saved_parameters'])

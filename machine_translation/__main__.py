@@ -43,7 +43,7 @@ if __name__ == "__main__":
     config_obj = configurations.get_config(configuration_file)
     # add the config file name into config_obj
     config_obj['config_file'] = configuration_file
-    logger.info("Model options:\n{}".format(pprint.pformat(config_obj)))
+    logger.info("Model Configuration:\n{}".format(pprint.pformat(config_obj)))
 
     if mode == 'train':
         # Get data streams and call main

@@ -45,7 +45,7 @@ class MinimumRiskSequenceGenerator(Decoder):
              target_samples, target_samples_mask, **kwargs):
         # emulate the process in sequence_generator.cost_matrix, but compute log probabilities instead of costs
         # for each sample, we need its probability according to the model (these could actually be passed from the
-        # sampling model)
+        # sampling model, which could be more efficient)
 
         # Transpose everything (note we can use transpose here only if it's 2d)
         source_sentence_mask = source_sentence_mask.T
@@ -94,35 +94,41 @@ class MinimumRiskSequenceGenerator(Decoder):
         # TODO: multiply (logspace add) token probabilities to get sequence probabilities
         # TODO: compute the g() function for each sequence (vector of probs) with temperature
 
-        costs = self.readout.cost(readouts, outputs)
-        if mask is not None:
-            costs *= mask
+        # WORKING: return 0. cost and get the whole pipeline running
 
-        for name, variable in list(glimpses.items()) + list(states.items()):
-            application_call.add_auxiliary_variable(
-                variable.copy(), name=name)
+        # costs = self.readout.cost(readouts, outputs)
+        # if mask is not None:
+        #     costs *= mask
+        #
+        # for name, variable in list(glimpses.items()) + list(states.items()):
+        #     application_call.add_auxiliary_variable(
+        #         variable.copy(), name=name)
 
         # This variables can be used to initialize the initial states of the
         # next batch using the last states of the current batch.
-        for name in self._state_names + self._glimpse_names:
-            application_call.add_auxiliary_variable(
-                results[name][-1].copy(), name=name+"_final_value")
+        # for name in self._state_names + self._glimpse_names:
+        #     application_call.add_auxiliary_variable(
+        #         results[name][-1].copy(), name=name+"_final_value")
 
-        return costs
+        # return costs
 
-        target_sentence = target_sentence.T
-        target_sentence_mask = target_sentence_mask.T
+        # target_sentence = target_sentence.T
+        # target_sentence_mask = target_sentence_mask.T
 
         # Get the cost matrix
-        cost = self.sequence_generator.cost_matrix(**{
-            'mask': target_sentence_mask,
-            'outputs': target_sentence,
-            'attended': representation,
-            'attended_mask': source_sentence_mask}
-                                                   )
+        # cost = self.sequence_generator.cost_matrix(**{
+        #     'mask': target_sentence_mask,
+        #     'outputs': target_sentence,
+        #     'attended': representation,
+        #     'attended_mask': source_sentence_mask}
+        #                                            )
 
-        return (cost * target_sentence_mask).sum() / \
-               target_sentence_mask.shape[1]
+        # return (cost * target_sentence_mask).sum() / \
+        #        target_sentence_mask.shape[1]
+        return 0.
+
+    # TODO: for generation, we don't want to use the sequence-level expected score, because we are generating
+    # TODO: step-by-step, this would require some form of expected future cost to make sense
 
     @application
     def generate(self, source_sentence, representation, **kwargs):

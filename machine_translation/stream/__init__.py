@@ -207,4 +207,17 @@ class MTSampleStreamTransformer:
         return self.score_func(source, reference, samples)
 
 
+def get_textfile_stream(source_file=None, src_vocab=None, src_vocab_size=30000,
+                      unk_id=1):
+    """Create a TextFile dataset from a single text file, and return a stream"""
+
+    src_vocab = _ensure_special_tokens(
+        src_vocab if isinstance(src_vocab, dict) else
+        cPickle.load(open(src_vocab)),
+        bos_idx=0, eos_idx=src_vocab_size - 1, unk_idx=unk_id)
+    source_dataset = TextFile([source_file], src_vocab, bos_token=None)
+    source_stream = DataStream(source_dataset)
+    return source_stream
+
+
 

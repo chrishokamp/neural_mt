@@ -1,5 +1,6 @@
 import tempfile
 import subprocess
+import os
 
 import logging
 logger = logging.getLogger()
@@ -7,7 +8,8 @@ logger.setLevel(logging.DEBUG)
 logging.debug("test")
 
 
-def mteval_13(source_file, reference_file, hypothesis_file, src_lang='en', trg_lang='de', engine='nmt'):
+def mteval_13(source_file, reference_file, hypothesis_file, src_lang='en', trg_lang='de', engine='nmt',
+              script_dir='/home/chris/projects/neural_mt/scripts/scoring/'):
     '''
     Calling WMT Perl script for the evaluation
     :param source_file: source SGML file
@@ -18,7 +20,7 @@ def mteval_13(source_file, reference_file, hypothesis_file, src_lang='en', trg_l
 
     # WORKING: delete the named temporary files created in this function
 
-    wrap_xml_script = '/home/chris/projects/neural_mt/scripts/scoring/wrap-xml-modified.perl'
+    wrap_xml_script = os.path.join(script_dir, 'wrap-xml-modified.perl')
 
     flags = ['src', 'ref', 'tst']
     inps_and_flags = zip([source_file, reference_file, hypothesis_file], flags)
@@ -63,7 +65,7 @@ def mteval_13(source_file, reference_file, hypothesis_file, src_lang='en', trg_l
             p.communicate(input=fname_stdin)[0]
 
     # now compute the segment-level BLEU scores
-    mteval_2013_script = '/home/chris/projects/neural_mt/scripts/scoring/mteval-v13a.pl'
+    mteval_2013_script = os.path.join(script_dir, 'mteval-v13a.pl')
 #     mteval_2013_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts', 'mteval-v13a.pl')
 #     mteval_cmd = ['perl', mteval_2013_script, '-r', reference_file, '-s',
 #                   source_file, '-t', decoded_file, '-b', '-d', '2']

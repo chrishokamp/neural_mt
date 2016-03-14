@@ -214,6 +214,17 @@ class Decoder(Initializable):
         return (cost * target_sentence_mask).sum() / \
             target_sentence_mask.shape[1]
 
+    # TODO: TESTING ONLY
+    @application(inputs=['representation', 'source_sentence_mask',
+                         'target_samples_mask', 'target_samples', 'scores'],
+                 outputs=['cost'])
+    def expected_cost(self, representation, source_sentence_mask, target_samples, target_samples_mask, scores,
+                      **kwargs):
+        return self.sequence_generator.expected_cost(representation,
+                                                     source_sentence_mask,
+                                                     target_samples, target_samples_mask, scores, **kwargs)
+
+
     @application
     def generate(self, source_sentence, representation, **kwargs):
         return self.sequence_generator.generate(

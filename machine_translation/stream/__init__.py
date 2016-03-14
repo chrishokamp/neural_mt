@@ -123,6 +123,7 @@ def get_tr_stream(src_vocab, trg_vocab, src_data, trg_data,
                     predicate=_too_long(seq_len=seq_len))
 
     # Replace out of vocabulary tokens with unk token
+    # TODO: doesn't the TextFile stream do this anyway?
     stream = Mapping(stream,
                      _oov_to_unk(src_vocab_size=src_vocab_size,
                                  trg_vocab_size=trg_vocab_size,
@@ -216,7 +217,8 @@ def get_textfile_stream(source_file=None, src_vocab=None, src_vocab_size=30000,
         cPickle.load(open(src_vocab)),
         bos_idx=0, eos_idx=src_vocab_size - 1, unk_idx=unk_id)
     source_dataset = TextFile([source_file], src_vocab, bos_token=None)
-    source_stream = DataStream(source_dataset)
+    # source_stream = DataStream(source_dataset)
+    source_stream = source_dataset.get_example_stream()
     return source_stream
 
 

@@ -3,6 +3,7 @@ from theano import tensor
 
 # from blocks.bricks.sequence_generators import BaseSequenceGenerator
 from machine_translation.model import Decoder
+from blocks.bricks import Initializable
 from blocks.bricks.base import application, Brick, lazy
 from blocks.roles import add_role, COST
 from blocks.utils import dict_union, dict_subset
@@ -27,11 +28,30 @@ def cost_matrix(self, application_call, outputs, mask=None, **kwargs):
 """
 
 
-class MinimumRiskSequenceGenerator(Decoder):
+# TODO: probably need to make a MinimumRiskSequence generator instead, because we have this issue with
+# TODO: calling through the brick hierarchy
+class MinimumRiskSequenceDecoder(Decoder):
 
-    # def __init__(self, *args, **kwargs):
-    #     super(MinimumRiskSequenceGenerator, self).__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super(MinimumRiskSequenceDecoder, self).__init__(*args, **kwargs)
 
+        # HACK -- what happens with initialization when we hijack these from self.sequence_generator?
+        # to
+        # self.children.extend([self.sequence_generator.readout, self.sequence_generator.fork,
+        #                      self.sequence_generator.transition])
+
+
+    # def _push_initialization_config(self):
+    #     for child in super(MinimumRiskSequenceDecoder, self).children:
+    #         if isinstance(child, Initializable):
+    #             child.rng = self.rng
+    #             if self.weights_init:
+    #                 child.weights_init = self.weights_init
+    #     if hasattr(self, 'biases_init') and self.biases_init:
+    #         for child in self.children:
+    #             if (isinstance(child, Initializable) and
+    #                     hasattr(child, 'biases_init')):
+    #                 child.biases_init = self.biases_init
 
     # TODO: can we override a method _and_ change its signature -- yes, but it breaks the Liskov substitution principle
     # WORKING: one solution to this is to put the scores into kwargs, but the semantics of 'samples' vs. 'outputs' is
@@ -52,9 +72,26 @@ class MinimumRiskSequenceGenerator(Decoder):
 
         # starting dimension of samples should be [batch, sample, time]
         # need to flatten out then reshape to keep interfaces consistent
-        samples_shape = target_samples.shape
-        samples = target_samples.reshape(samples_shape[0]*samples_shape[1], samples_shape[2])
-        samples_mask = target_samples_mask.reshape((samples.shape))
+        # samples_shape = target_samples.shape
+        # samples = target_samples.reshape((samples_shape[0]*samples_shape[1], samples_shape[2]))
+        # samples_mask = target_samples_mask.reshape(samples.shape)
+        samples = target_samples
+        samples_mask = target_samples_mask
+
+        source_sentence_mask = source_sentence_mask.T
+        # target_sentence = target_sentence.T
+        # target_sentence_mask = target_sentence_mask.T
+
+        # we need this to set the 'attended' kwarg
+        keywords = {
+            'mask': target_samples_mask,
+            'outputs': target_samples,
+            'attended': representation,
+            'attended_mask': source_sentence_mask
+        }
+
+        # return (cost * target_sentence_mask).sum() / \
+        #     target_sentence_mask.shape[1]
 
         # make samples (time, batch)
         samples = samples.T
@@ -63,14 +100,14 @@ class MinimumRiskSequenceGenerator(Decoder):
         batch_size = samples.shape[1]
 
         # Prepare input for the iterative part
-        states = dict_subset(kwargs, self._state_names, must_have=False)
+        states = dict_subset(keywords, self.sequence_generator._state_names, must_have=False)
         # masks in context are optional (e.g. `attended_mask`)
-        contexts = dict_subset(kwargs, self._context_names, must_have=False)
-        feedback = self.readout.feedback(samples)
-        inputs = self.fork.apply(feedback, as_dict=True)
+        contexts = dict_subset(keywords, self.sequence_generator._context_names, must_have=False)
+        feedback = self.sequence_generator.readout.feedback(samples)
+        inputs = self.sequence_generator.fork.apply(feedback, as_dict=True)
 
         # Run the recurrent network
-        results = self.transition.apply(
+        results = self.sequence_generator.transition.apply(
             mask=samples_mask, return_initial_states=True, as_dict=True,
             **dict_union(inputs, states, contexts))
 
@@ -79,16 +116,18 @@ class MinimumRiskSequenceGenerator(Decoder):
         # are discarded because they are not used for prediction.
         # Remember, glimpses are computed _before_ output stage, states are
         # computed after.
-        states = {name: results[name][:-1] for name in self._state_names}
-        glimpses = {name: results[name][1:] for name in self._glimpse_names}
+        states = {name: results[name][:-1] for name in self.sequence_generator._state_names}
+        glimpses = {name: results[name][1:] for name in self.sequence_generator._glimpse_names}
 
         # Compute the cost
         feedback = tensor.roll(feedback, 1, 0)
         feedback = tensor.set_subtensor(
             feedback[0],
-            self.readout.feedback(self.readout.initial_outputs(batch_size)))
-        readouts = self.readout.readout(
+            self.sequence_generator.readout.feedback(self.sequence_generator.readout.initial_outputs(batch_size)))
+        readouts = self.sequence_generator.readout.readout(
             feedback=feedback, **dict_union(states, glimpses, contexts))
+
+
 
         # TODO: get the token probabilities instead of the costs _HERE_
         # TODO: multiply (logspace add) token probabilities to get sequence probabilities
@@ -125,7 +164,7 @@ class MinimumRiskSequenceGenerator(Decoder):
 
         # return (cost * target_sentence_mask).sum() / \
         #        target_sentence_mask.shape[1]
-        return 0.
+        return readouts.sum() * 0.
 
     # TODO: for generation, we don't want to use the sequence-level expected score, because we are generating
     # TODO: step-by-step, this would require some form of expected future cost to make sense

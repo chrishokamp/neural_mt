@@ -179,7 +179,7 @@ class MTSampleStreamTransformer:
     sample_func: function(num_samples=1) which takes source seq and outputs <num_samples> samples
     score_func: function
 
-    At call time, we expect a stream providing (sources,) -- i.e. something like a TextFile object
+    At call time, we expect a stream providing (sources, references) -- i.e. something like a TextFile object
 
 
     """

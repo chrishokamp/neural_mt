@@ -15,6 +15,8 @@ from blocks.bricks.sequence_generators import (
 from blocks.roles import add_role, WEIGHT
 from blocks.utils import shared_floatx_nans
 
+from machine_translation.models import MinRiskSequenceGenerator
+
 from picklable_itertools.extras import equizip
 
 
@@ -183,13 +185,25 @@ class Decoder(Initializable):
             merged_dim=state_dim)
 
         # Build sequence generator accordingly
-        self.sequence_generator = SequenceGenerator(
+        # self.sequence_generator = SequenceGenerator(
+        #     readout=readout,
+        #     transition=self.transition,
+        #     attention=self.attention,
+        #     fork=Fork([name for name in self.transition.apply.sequences
+        #                if name != 'mask'], prototype=Linear())
+        # )
+
+        # TODO: make the type of SequenceGenerator externally configurable
+        self.sequence_generator = MinRiskSequenceGenerator(
             readout=readout,
             transition=self.transition,
             attention=self.attention,
             fork=Fork([name for name in self.transition.apply.sequences
                        if name != 'mask'], prototype=Linear())
         )
+        # the name is important, because it lets us match the brick hierarchy names for the vanilla SequenceGenerator
+        # to load pretrained models
+        self.sequence_generator.name = 'sequencegenerator'
 
         self.children = [self.sequence_generator]
 

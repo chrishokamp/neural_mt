@@ -196,7 +196,7 @@ class MTSampleStreamTransformer:
         # each sample may be of different length
         samples = self.sample_func(numpy.array(source), self.num_samples)
         # TODO: we currently have to pass the source because of the interface to mteval_v13
-        scores = self._compute_scores(source, reference, samples)
+        scores = numpy.array(self._compute_scores(source, reference, samples)).astype('float32')
 
         return (samples, scores)
 

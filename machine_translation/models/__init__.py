@@ -151,6 +151,19 @@ class MinRiskSequenceGenerator(SequenceGenerator):
         sequence_probs = sequence_probs.sum(axis=1)
 
         sequence_probs = sequence_probs.reshape(scores.shape)
+        # TODO: add temperature parameter to softmax
+        sequence_distributions = sequence_probs / sequence_probs.sum(axis=1, keepdims=True)
+
+        # the following lines are done explicitly for clarity
+        # -- first get sequence expectation, then sum up the expectations for every
+        # seq in the minibatch
+        expected_scores = (sequence_distributions * scores).sum(axis=1)
+        expected_scores = expected_scores.sum(axis=0)
+
+
+        # TODO: now multiply distributions with scores to get the expected values
+
+        # return self.softmax.apply(readouts, extra_ndim=readouts.ndim - 2)
 
         # now get the g function for each instance, by doing a softmax with temperature param
         # over each sample from that instance
@@ -204,7 +217,9 @@ class MinRiskSequenceGenerator(SequenceGenerator):
      #    return word_probs
      #    return one_hot_samples
      #    return actual_probs
-        return sequence_probs
+     #    return sequence_probs
+     #    return sequence_distributions
+        return expected_scores
      #    return target_samples
      #    return source_sentence_mask
         # return readouts

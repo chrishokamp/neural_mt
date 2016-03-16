@@ -84,12 +84,15 @@ def mteval_13(source_file, reference_file, hypothesis_file, src_lang='en', trg_l
     per_seg_lines = per_seg_lines[:-2]
     bleu_scores = [float(l.split()[5]) for l in per_seg_lines]
 
+    # this is because we will use the scores in a func that we want to minimize
+    one_minus_bleu_scores = [1.-v for v in bleu_scores]
+
     with open(hypothesis_file) as inp:
         num_segments = len(inp.read().strip().split('\n'))
 
     assert len(bleu_scores) == num_segments, "We must get one score for each segment"
 
-    return bleu_scores
+    return one_minus_bleu_scores
 
 
 # sentence level bleu scoring

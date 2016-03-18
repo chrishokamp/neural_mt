@@ -94,7 +94,7 @@ exp_config = {
 
     # Optimization related ----------------------------------------------------
     # Batch size
-    'batch_size': 10,
+    'batch_size': 8,
     # This many batches will be read ahead and sorted
     'sort_k_batches': 2,
     # Optimization step rule
@@ -246,6 +246,9 @@ training_stream = Merge([src_stream,
                          trg_stream],
                          ('source', 'target'))
 
+# Filter sequences that are too long
+training_stream = Filter(training_stream,
+                         predicate=_too_long(seq_len=exp_config['seq_len']))
 
 # sampling_transformer = MTSampleStreamTransformer(sampling_func, fake_score, num_samples=5)
 sampling_transformer = MTSampleStreamTransformer(sampling_func, sentence_level_bleu, num_samples=exp_config['n_samples'])
@@ -358,9 +361,6 @@ class CopySourceNTimes(Transformer):
         return tuple(batch_with_expanded_source)
 
 
- # Filter sequences that are too long
-# training_stream = Filter(training_stream,
-#                 predicate=_too_long(seq_len=exp_config['seq_len']))
 
 # Replace out of vocabulary tokens with unk token
 # training_stream = Mapping(training_stream,

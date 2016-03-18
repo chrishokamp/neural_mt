@@ -150,12 +150,14 @@ class MinRiskSequenceGenerator(SequenceGenerator):
         sequence_probs = sequence_probs.sum(axis=1)
 
         # reshape and do exp() to get the true probs back
-        sequence_probs = tensor.exp(sequence_probs.reshape(scores.shape))
+        # sequence_probs = tensor.exp(sequence_probs.reshape(scores.shape))
+        sequence_probs = sequence_probs.reshape(scores.shape)
 
         # TODO: test that this smoothing works
         smoothing_constant = 0.005
-        sequence_distributions = ((sequence_probs**smoothing_constant) /
-                                  (sequence_probs**smoothing_constant).sum(axis=1, keepdims=True))
+        sequence_distributions = (tensor.exp(sequence_probs*smoothing_constant) /
+                                  tensor.exp(sequence_probs*smoothing_constant)
+                                  .sum(axis=1, keepdims=True))
 
         # the following lines are done explicitly for clarity
         # -- first get sequence expectation, then sum up the expectations for every
@@ -180,5 +182,6 @@ class MinRiskSequenceGenerator(SequenceGenerator):
      #    return target_samples
      #    return source_sentence_mask
         # return readouts
+
 
 

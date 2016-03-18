@@ -133,7 +133,6 @@ class MinRiskSequenceGenerator(SequenceGenerator):
         # TODO: another option is to compute the sequence probability in the sampling step
         word_probs = self.probs(readouts)
         word_probs = tensor.log(word_probs)
-        # * samples_mask
 
 
         # Note: converting the samples to one hot wastes space, but it gets the job done
@@ -141,70 +140,28 @@ class MinRiskSequenceGenerator(SequenceGenerator):
         one_hot_samples.astype('float32')
         actual_probs = word_probs * one_hot_samples
 
-        # reshape to (batch, time, prob), take elementwise log, then sum over the batch dimension
+        # reshape to (batch, time, prob), then sum over the batch dimension
         # to get sequence-level probability
         actual_probs = actual_probs.dimshuffle(1,0,2)
-        # we are first summing over vocabulary (only one non zero cell)
+        # we are first summing over vocabulary (only one non-zero cell per row)
         sequence_probs = actual_probs.sum(axis=2)
         sequence_probs = sequence_probs * target_samples_mask
         # now sum over time dimension
         sequence_probs = sequence_probs.sum(axis=1)
 
-        sequence_probs = sequence_probs.reshape(scores.shape)
-        # TODO: add temperature parameter to softmax
-        sequence_distributions = sequence_probs / sequence_probs.sum(axis=1, keepdims=True)
+        # reshape and do exp() to get the true probs back
+        sequence_probs = tensor.exp(sequence_probs.reshape(scores.shape))
+
+        # TODO: test that this smoothing works
+        smoothing_constant = 0.005
+        sequence_distributions = ((sequence_probs**smoothing_constant) /
+                                  (sequence_probs**smoothing_constant).sum(axis=1, keepdims=True))
 
         # the following lines are done explicitly for clarity
         # -- first get sequence expectation, then sum up the expectations for every
         # seq in the minibatch
         expected_scores = (sequence_distributions * scores).sum(axis=1)
         expected_scores = expected_scores.sum(axis=0)
-
-
-        # TODO: now multiply distributions with scores to get the expected values
-
-        # return self.softmax.apply(readouts, extra_ndim=readouts.ndim - 2)
-
-        # now get the g function for each instance, by doing a softmax with temperature param
-        # over each sample from that instance
-
-        # TODO: reshape using scores.shape to get the g() distribution for each sequence
-
-
-        # TODO: compute the g() function for each sequence (vector of probs) with temperature
-
-
-
-
-        # costs = self.readout.cost(readouts, outputs)
-        # if mask is not None:
-        #     costs *= mask
-        #
-        # for name, variable in list(glimpses.items()) + list(states.items()):
-        #     application_call.add_auxiliary_variable(
-        #         variable.copy(), name=name)
-
-        # This variables can be used to initialize the initial states of the
-        # next batch using the last states of the current batch.
-        # for name in self._state_names + self._glimpse_names:
-        #     application_call.add_auxiliary_variable(
-        #         results[name][-1].copy(), name=name+"_final_value")
-
-        # return costs
-
-        # target_sentence = target_sentence.T
-        # target_sentence_mask = target_sentence_mask.T
-
-        # Get the cost matrix
-        # cost = self.sequence_generator.cost_matrix(**{
-        #     'mask': target_sentence_mask,
-        #     'outputs': target_sentence,
-        #     'attended': representation,
-        #     'attended_mask': source_sentence_mask}
-        #                                            )
-
-        # return (cost * target_sentence_mask).sum() / \
-        #        target_sentence_mask.shape[1]
 
 	#return readouts.sum() * 0.
 	#return tensor.zeros_like(representation).astype('float32').sum()

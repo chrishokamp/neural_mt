@@ -179,7 +179,7 @@ def get_sampling_model_and_input(exp_config):
 
     return sampling_model, sampling_input, encoder, decoder
 
-test_model, theano_sampling_input, train_encoder, train_decoder = get_sampling_model_and_input(exp_config)
+sample_model, theano_sampling_input, train_encoder, train_decoder = get_sampling_model_and_input(exp_config)
 
 
 # test that we can pull samples from the model
@@ -193,7 +193,7 @@ src_vocab = _ensure_special_tokens(src_vocab, bos_idx=0,
 trg_vocab = _ensure_special_tokens(trg_vocab, bos_idx=0,
                                    eos_idx=trg_vocab_size, unk_idx=exp_config['unk_id'])
 
-test_sampling_func = test_model.get_theano_function()
+theano_sample_func = sample_model.get_theano_function()
 
 # close over the sampling func and the trg_vocab to standardize the interface
 # TODO: actually this should be a callable class with params (sampling_func, trg_vocab)
@@ -201,24 +201,35 @@ test_sampling_func = test_model.get_theano_function()
 # TODO: or by avoiding the for loop somehow
 def sampling_func(source_seq, num_samples=1):
 
-    def _get_true_length(seq, trg_vocab):
+    def _get_true_length(seqs, trg_vocab):
         try:
-            return seq.tolist().index(trg_vocab['</S>']) + 1
+            lens = []
+            for r in seqs.tolist():
+                lens.append(r.index(trg_vocab['</S>']) + 1)
+            return lens
         except ValueError:
-            return len(seq)
+            return [seqs.shape[1] for _ in range(seqs.shape[0])]
 
-    samples = []
-    for _ in range(num_samples):
+    # samples = []
+    # for _ in range(num_samples):
         # outputs of self.sampling_fn = outputs of sequence_generator.generate: next_states + [next_outputs] +
         #                 list(next_glimpses.values()) + [next_costs])
-        _1, outputs, _2, _3, costs = test_sampling_func(source_seq[None, :])
+        # _1, outputs, _2, _3, costs = theano_sample_func(source_seq[None, :])
         # if we are generating a single sample, the length of the output will be len(source_seq)*2
         # see decoder.generate
         # the output is a [seq_len, 1] array
-        outputs = outputs.reshape(outputs.shape[0])
-        outputs = outputs[:_get_true_length(outputs, trg_vocab)]
+        # outputs = outputs.reshape(outputs.shape[0])
+        # outputs = outputs[:_get_true_length(outputs, trg_vocab)]
+        # samples.append(outputs)
 
-        samples.append(outputs)
+    inputs = tensor.tile(source_seq[None, :], (num_samples, 1))
+    # the output is [seq_len, batch]
+    _1, outputs, _2, _3, costs = theano_sample_func(inputs)
+    outputs = outputs.T
+
+    # TODO: this step could be avoided by computing the samples mask in a different way
+    lens = _get_true_length(outputs)
+    samples = [s[:l] for s,l in zip(outputs.tolist(), lens)]
 
     return samples
 

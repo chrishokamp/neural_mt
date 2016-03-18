@@ -50,6 +50,13 @@ from machine_translation.stream import (get_tr_stream, get_dev_stream,
                                         _oov_to_unk)
 from machine_translation.evaluation import sentence_level_bleu
 
+try:
+    from blocks_extras.extensions.plot import Plot
+    BOKEH_AVAILABLE = True
+except ImportError:
+    BOKEH_AVAILABLE = False
+
+
 
 # build the training and sampling graphs for minimum risk training
 # Intialize the MTSampleStreamTransformer with the sampling function
@@ -64,8 +71,9 @@ from machine_translation.evaluation import sentence_level_bleu
 # Note that we must sample instead of getting the 1-best or N-best, because we need the randomness to make the expected
 # BLEU score make sense
 
-BASEDIR = '/home/chris/projects/neural_mt/archived_models/BERTHA-TEST_Adam_wmt-multimodal_internal_data_dropout'+\
+BASEDIR = '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BERTHA-TEST_Adam_wmt-multimodal_internal_data_dropout'+\
           '0.3_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/'
+#best_bleu_model_1455464992_BLEU31.61.npz
 
 exp_config = {
     'src_vocab_size': 20000,
@@ -74,21 +82,21 @@ exp_config = {
     'dec_embed': 300,
     'enc_nhids': 800,
     'dec_nhids': 800,
-    'saved_parameters': os.path.join(BASEDIR, 'best_bleu_model_1455464992_BLEU31.61.npz'),
+    'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BERTHA-TEST_wmt-multimodal_internal_data_dropout0.3_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_bleu_model_1455410311_BLEU30.38.npz',
     'src_vocab': os.path.join(BASEDIR, 'vocab.en-de.en.pkl'),
     'trg_vocab': os.path.join(BASEDIR, 'vocab.en-de.de.pkl'),
     'src_data': os.path.join(BASEDIR, 'training_data/train.en.tok.shuf'),
     'trg_data': os.path.join(BASEDIR, 'training_data/train.de.tok.shuf'),
     'unk_id':1,
     # Bleu script that will be used (moses multi-perl in this case)
-    'bleu_script': os.path.join(os.path.realpath(__file__),
+    'bleu_script': os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 '../test_data/sample_experiment/tiny_demo_dataset/multi-bleu.perl'),
 
     # Optimization related ----------------------------------------------------
     # Batch size
-    'batch_size': 2,
+    'batch_size': 10,
     # This many batches will be read ahead and sorted
-    'sort_k_batches': 1,
+    'sort_k_batches': 2,
     # Optimization step rule
     'step_rule': 'AdaDelta',
     # Gradient clipping threshold
@@ -96,8 +104,49 @@ exp_config = {
     # Std of weight initialization
     'weight_scale': 0.01,
     'seq_len': 40,
-    'finish_after': 100
+    # Beam-size
+    'beam_size': 10,
+
+    # Maximum number of updates
+    'finish_after': 1000000,
+
+    # Reload model from files if exist
+    'reload': False,
+
+    # Save model after this many updates
+    'save_freq': 500,
+
+    # Show samples from model after this many updates
+    'sampling_freq': 1000,
+
+    # Show this many samples at each sampling
+    'hook_samples': 5,
+
+    # Validate bleu after this many updates
+    'bleu_val_freq': 10,
+    # Normalize cost according to sequence length after beam-search
+    'normalized_bleu': True,
+    
+    'saveto': '/media/1tb_drive/test_min_risk_model_save',
+    'model_save_directory': 'test_min_risk_model_save',
+    # Validation set source file
+    'val_set': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/dev.en.tok',
+
+    # Validation set gold file
+    'val_set_grndtruth': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/dev.de.tok',
+
+    # Print validation output to file
+    'output_val_set': True,
+
+    # Validation output file
+    'val_set_out': '/media/1tb_drive/test_min_risk_model_save/validation_out.txt',
+    'val_burn_in': 0,
+
+    # NEW PARAM FOR MIN RISK
+    'n_samples': 50 
+
 }
+
 
 def get_sampling_model_and_input(exp_config):
     # Create Theano variables
@@ -127,11 +176,6 @@ def get_sampling_model_and_input(exp_config):
     logger.info("Creating Sampling Model...")
     sampling_model = Model(generated)
 
-    # Set the parameters from a trained models
-    logger.info("Loading parameters from model: {}".format(exp_config['saved_parameters']))
-    # load the parameter values from an .npz file
-    param_values = LoadNMT.load_parameter_values(exp_config['saved_parameters'])
-    LoadNMT.set_model_parameters(sampling_model, param_values)
 
     return sampling_model, sampling_input, encoder, decoder
 
@@ -193,7 +237,7 @@ training_stream = Merge([src_stream,
 
 
 # sampling_transformer = MTSampleStreamTransformer(sampling_func, fake_score, num_samples=5)
-sampling_transformer = MTSampleStreamTransformer(sampling_func, sentence_level_bleu, num_samples=5)
+sampling_transformer = MTSampleStreamTransformer(sampling_func, sentence_level_bleu, num_samples=exp_config['n_samples'])
 
 training_stream = Mapping(training_stream, sampling_transformer, add_sources=('samples', 'scores'))
 
@@ -332,7 +376,7 @@ training_stream = Batch(
 # IDEA: add a transformer which flattens the target samples before we add the mask
 flat_sample_stream = FlattenSamples(training_stream)
 
-expanded_source_stream = CopySourceNTimes(flat_sample_stream, n_samples=5)
+expanded_source_stream = CopySourceNTimes(flat_sample_stream, n_samples=exp_config['n_samples'])
 
 # TODO: some sources can be excluded from the padding Op, but since blocks matches sources with input variable
 # TODO: names, it's not critical
@@ -371,8 +415,8 @@ def create_model(encoder, decoder):
 
 def main(model, cost, config, tr_stream, dev_stream, use_bokeh=False):
 
-    logger.info("Loading parameters from model: {}".format(config['saved_parameters']))
-    # load the parameter values from an .npz file
+    # Set the parameters from a trained models (.npz file)
+    logger.info("Loading parameters from model: {}".format(exp_config['saved_parameters']))
     param_values = LoadNMT.load_parameter_values(config['saved_parameters'])
     LoadNMT.set_model_parameters(model, param_values)
 
@@ -390,51 +434,51 @@ def main(model, cost, config, tr_stream, dev_stream, use_bokeh=False):
         FinishAfter(after_n_batches=config['finish_after']),
         TrainingDataMonitoring([cost], after_batch=True),
         Printing(after_batch=True),
-#         CheckpointNMT(config['saveto'],
-#                       every_n_batches=config['save_freq'])
+         CheckpointNMT(config['saveto'],
+                       every_n_batches=config['save_freq'])
     ]
 
 
     # Set up beam search and sampling computation graphs if necessary
 
-#     if config['hook_samples'] >= 1 or config['bleu_script'] is not None:
-#         logger.info("Building sampling model")
-#         sampling_representation = encoder.apply(
-#             sampling_input, tensor.ones(sampling_input.shape))
-#         # TODO: the generated output actually contains several more values, ipdb to see what they are
-#         generated = decoder.generate(sampling_input, sampling_representation)
-#         search_model = Model(generated)
-#         _, samples = VariableFilter(
-#             bricks=[decoder.sequence_generator], name="outputs")(
-#                 ComputationGraph(generated[1]))  # generated[1] is next_outputs
+    if config['hook_samples'] >= 1 or config['bleu_script'] is not None:
+        logger.info("Building sampling model")
+        sampling_representation = train_encoder.apply(
+            theano_sampling_input, tensor.ones(theano_sampling_input.shape))
+        # TODO: the generated output actually contains several more values, ipdb to see what they are
+        generated = train_decoder.generate(theano_sampling_input, sampling_representation)
+        search_model = Model(generated)
+        _, samples = VariableFilter(
+            bricks=[train_decoder.sequence_generator], name="outputs")(
+                ComputationGraph(generated[1]))  # generated[1] is next_outputs
 
     # Add sampling
-#     if config['hook_samples'] >= 1:
-#         logger.info("Building sampler")
-#         extensions.append(
-#             Sampler(model=search_model, data_stream=tr_stream,
-#                     hook_samples=config['hook_samples'],
-#                     every_n_batches=config['sampling_freq'],
-#                     src_vocab_size=config['src_vocab_size']))
+    if config['hook_samples'] >= 1:
+        logger.info("Building sampler")
+        extensions.append(
+            Sampler(model=search_model, data_stream=tr_stream,
+                    hook_samples=config['hook_samples'],
+                    every_n_batches=config['sampling_freq'],
+                    src_vocab_size=config['src_vocab_size']))
 
     # Add early stopping based on bleu
-#     if config['bleu_script'] is not None:
-#         logger.info("Building bleu validator")
-#         extensions.append(
-#             BleuValidator(sampling_input, samples=samples, config=config,
-#                           model=search_model, data_stream=dev_stream,
-#                           normalize=config['normalized_bleu'],
-#                           every_n_batches=config['bleu_val_freq']))
+    if config['bleu_script'] is not None:
+        logger.info("Building bleu validator")
+        extensions.append(
+            BleuValidator(theano_sampling_input, samples=samples, config=config,
+                          model=search_model, data_stream=dev_stream,
+                          normalize=config['normalized_bleu'],
+                          every_n_batches=config['bleu_val_freq']))
 
     # Reload model if necessary
-#     if config['reload']:
-#         extensions.append(LoadNMT(config['saveto']))
+    if config['reload']:
+        extensions.append(LoadNMT(config['saveto']))
 
     # Plot cost in bokeh if necessary
-#     if use_bokeh and BOKEH_AVAILABLE:
-#         extensions.append(
-#             Plot(config['model_save_directory'], channels=[['decoder_cost_cost'], ['validation_set_bleu_score']],
-#                  every_n_batches=10))
+    if use_bokeh and BOKEH_AVAILABLE:
+        extensions.append(
+            Plot(config['model_save_directory'], channels=[['decoder_cost_cost'], ['validation_set_bleu_score']],
+                 every_n_batches=10))
 
     # Set up training algorithm
     logger.info("Initializing training algorithm")
@@ -504,6 +548,8 @@ train_model = Model(training_cost)
 # scores
 # src_ivocab = {v:k for k,v in src_vocab.items()}
 
-main(train_model, training_cost, exp_config, masked_stream, dev_stream=None, use_bokeh=False)
+dev_stream = get_dev_stream(**exp_config)
+
+main(train_model, training_cost, exp_config, masked_stream, dev_stream=dev_stream, use_bokeh=True)
 
 

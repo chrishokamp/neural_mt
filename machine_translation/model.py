@@ -218,7 +218,6 @@ class Decoder(Initializable):
         else:
             raise ValueError('The decoder does not support the loss function: {}'.format(loss_function))
 
-
         self.children = [self.sequence_generator]
 
     @application(inputs=['representation', 'source_sentence_mask',

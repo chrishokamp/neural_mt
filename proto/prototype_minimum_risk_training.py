@@ -428,7 +428,8 @@ def main(model, cost, config, tr_stream, dev_stream, use_bokeh=False):
 
     # Set the parameters from a trained models (.npz file)
     logger.info("Loading parameters from model: {}".format(exp_config['saved_parameters']))
-    param_values = LoadNMT.load_parameter_values(config['saved_parameters'])
+    # Note the brick delimeter='-' is here for legacy reasons because blocks changed the serialization API
+    param_values = LoadNMT.load_parameter_values(config['saved_parameters'], brick_delimiter='-')
     LoadNMT.set_model_parameters(model, param_values)
 
     logger.info('Creating computational graph')

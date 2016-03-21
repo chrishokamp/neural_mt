@@ -35,13 +35,16 @@ class SaveLoadUtils(object):
         return os.path.join(self.folder, 'log')
 
     @staticmethod
-    def load_parameter_values(path):
+    def load_parameter_values(path, brick_delimiter=None):
         with closing(numpy.load(path)) as source:
             param_values = {}
             for name, value in source.items():
                 if name != 'pkl':
                     # Chris: BRICK_DELIMITER is defined in blocks.serialization
-                    name_ = name.replace(BRICK_DELIMITER, '/')
+                    if brick_delimiter is None:
+                        name_ = name.replace(BRICK_DELIMITER, '/')
+                    else:
+                        name_ = name.replace(brick_delimiter, '/')
                     if not name_.startswith('/'):
                         name_ = '/' + name_
                     param_values[name_] = value
@@ -49,7 +52,7 @@ class SaveLoadUtils(object):
 
     @staticmethod
     def save_parameter_values(param_values, path):
-        param_values = {name.replace("/", "-"): param
+        param_values = {name.replace("/", BRICK_DELIMITER): param
                         for name, param in param_values.items()}
         numpy.savez(path, **param_values)
 

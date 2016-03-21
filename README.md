@@ -1,4 +1,4 @@
-# Unbabel's version of Montreal's Theano Neural-MT Model  
+# Models for Deep Machine Translation
 
 **Install**
 
@@ -30,6 +30,9 @@ have the source and target language codes correct!
 Edit machine_translation/configurations.py with your desired parameters, again,
 be careful about the language codes
 
+We also provide a lot of hooks for customizing your dictionaries, validation data, etc... See the argument specification
+of `machine_translation/prepare_data.py` for more details. 
+
 (2) Training the model            
 
 Be sure your ~/.theanorc is configured correctly (see install_instructions). 
@@ -60,7 +63,6 @@ To run a server with a simple prediction demo, do:
     
 You don't need a GPU for prediction, but you do want as many cores as you can spare (gpu should be somewhat faster). 
 Prediction with a large model took ~4sec per sentence on a 2012 machine with 8 older-generation i7 cores.
-             
 
 
 **Notes and Gotchas**
@@ -70,7 +72,8 @@ Prediction with a large model took ~4sec per sentence on a 2012 machine with 8 o
   doesn't find reverse pairs. I.e. if `es-en` exists, it doesn't know that you
   implicitly have `en-es` (debates on translation direction aside). Therefore,
   you may need to rename some files in data/tmp/train_data.tgz to make things
-  work.
+  work, or you can find the right combination of command line args that works for
+  your desired setup.
 
 - the default configuration requires too much memory for a 4GB GPU -- the
   params that you need to change are: 
@@ -115,8 +118,10 @@ and you need the vocabularies to match. See `machine_translation/prepare_data.py
 
 **Commands for monitoring your experiments**
 
-- access the shared monitoring screens (Google for basic byoubiu commands)
+- access the shared monitoring screens (Google for basic byobu commands)
 `byobu` 
 
 - monitor GPU usage
 `watch -d nvidia-smi`
+
+

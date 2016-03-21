@@ -1,30 +1,16 @@
 from theano import tensor
 
-from blocks.bricks import Initializable
-from blocks.bricks.base import application, Brick, lazy
+from blocks.bricks.base import application
 from blocks.bricks import NDimensionalSoftmax
 
-from blocks.roles import add_role, COST
 from blocks.utils import dict_union, dict_subset
-from blocks.bricks.recurrent import recurrent
-# from blocks.bricks.sequence_generators import BaseSequenceGenerator
 from blocks.bricks.sequence_generators import SequenceGenerator
 
-# A decoder which replaces the sequence generator cross entropy cost function with a minimum-risk training objective
-# based on expectation over a sentence-level metric
 
-
-# WORKING:
-# subclass sequence generator and replace cost function
-# remember that the sequence generator cost function delegates to readout, then to emitter
-# For generation, we still want to use categorical cross-entropy from the softmax emitter
-# readout.cost is called in sequence_generator.generate
-
-# Working -- subclass sequence generator, and change the MT decoder so that we don't get into problems with the blocks
-# application/call Hierarchy
-# TODO: where/how does blocks determine the bricks' hierarchical names?
 class MinRiskSequenceGenerator(SequenceGenerator):
-    r"""A generic sequence generator.
+    r"""
+    A sequence generator which replaces the cross-entropy cost function with a minimum-risk training objective
+    based on expectation over a sentence-level metric
 
     Parameters
     ----------
@@ -39,9 +25,6 @@ class MinRiskSequenceGenerator(SequenceGenerator):
     --------
     :class:`.Initializable` : for initialization parameters
 
-    :class:`SequenceGenerator` : more user friendly interface to this\
-        brick
-
     """
 
     def __init__(self, *args, **kwargs):
@@ -54,36 +37,24 @@ class MinRiskSequenceGenerator(SequenceGenerator):
         return self.softmax.apply(readouts, extra_ndim=readouts.ndim - 2)
 
 
-    # TODO: can we override a method _and_ change its signature -- yes, but it breaks the Liskov substitution principle
-    # TODO: the shape of samples is stored in `scores`, look there to do the neccessary reshapes
-    # WORKING: one solution to this is to put the scores into kwargs, but the semantics of 'samples' vs. 'outputs' is
-    # still different, so maybe it's ok to change the signature
-    # Note: the @application decorator inspects the arguments, and transparently adds args for 'application' and
-    # 'application_call'
+    # Note: the @application decorator inspects the arguments, and transparently adds args  ('application_call')
     @application(inputs=['representation', 'source_sentence_mask',
                          'target_samples_mask', 'target_samples', 'scores'],
                  outputs=['cost'])
     def expected_cost(self, application_call, representation, source_sentence_mask,
              target_samples, target_samples_mask, scores, **kwargs):
-        # emulate the process in sequence_generator.cost_matrix, but compute log probabilities instead of costs
-        # for each sample, we need its probability according to the model (these could actually be passed from the
-        # sampling model, which could be more efficient)
+        """
+        emulate the process in sequence_generator.cost_matrix, but compute log probabilities instead of costs
+        for each sample, we need its probability according to the model (these could actually be passed from the
+        sampling model, which could be more efficient)
+        """
 
-        # Transpose everything (note we can use transpose here only if it's 2d)
+        # Transpose everything (note we can use transpose here only if it's 2d, otherwise we need dimshuffle)
         source_sentence_mask = source_sentence_mask.T
-
-        # starting dimension of samples should be [batch, sample, time]
-        # need to flatten out then reshape to keep interfaces consistent
-        # samples_shape = target_samples.shape
-        # samples = target_samples.reshape((samples_shape[0]*samples_shape[1], samples_shape[2]))
-        # samples_mask = target_samples_mask.reshape(samples.shape)
 
         # make samples (time, batch)
         samples = target_samples.T
         samples_mask = target_samples_mask.T
-
-        # target_sentence = target_sentence.T
-        # target_sentence_mask = target_sentence_mask.T
 
         # we need this to set the 'attended' kwarg
         keywords = {
@@ -92,10 +63,6 @@ class MinRiskSequenceGenerator(SequenceGenerator):
             'attended': representation,
             'attended_mask': source_sentence_mask
         }
-
-        # return (cost * target_sentence_mask).sum() / \
-        #     target_sentence_mask.shape[1]
-
 
         batch_size = samples.shape[1]
 
@@ -127,15 +94,10 @@ class MinRiskSequenceGenerator(SequenceGenerator):
         readouts = self.readout.readout(
            feedback=feedback, **dict_union(states, glimpses, contexts))
 
-        # get the token probabilities -- should be shape = (time, batch, vocab)
-        # the max at each timestep is the word that was chosen(?)
-        #  -- No, we need the index of the word to know which was chosen
-        # TODO: another option is to compute the sequence probability in the sampling step
         word_probs = self.probs(readouts)
         word_probs = tensor.log(word_probs)
 
-
-        # Note: converting the samples to one hot wastes space, but it gets the job done
+        # Note: converting the samples to one-hot wastes space, but it gets the job done
         one_hot_samples = tensor.eye(word_probs.shape[-1])[samples]
         one_hot_samples.astype('float32')
         actual_probs = word_probs * one_hot_samples
@@ -153,35 +115,17 @@ class MinRiskSequenceGenerator(SequenceGenerator):
         # sequence_probs = tensor.exp(sequence_probs.reshape(scores.shape))
         sequence_probs = sequence_probs.reshape(scores.shape)
 
-        # TODO: test that this smoothing works
+        # TODO: make smoothing constant configurable
         smoothing_constant = 0.005
         sequence_distributions = (tensor.exp(sequence_probs*smoothing_constant) /
                                   tensor.exp(sequence_probs*smoothing_constant)
                                   .sum(axis=1, keepdims=True))
 
-        # the following lines are done explicitly for clarity
+        # the following lines are done explicitly for code clarity
         # -- first get sequence expectation, then sum up the expectations for every
         # seq in the minibatch
         expected_scores = (sequence_distributions * scores).sum(axis=1)
         expected_scores = expected_scores.sum(axis=0)
 
-	#return readouts.sum() * 0.
-	#return tensor.zeros_like(representation).astype('float32').sum()
-
-	# return representation.sum()
-     #    return readouts.sum()
-     #    return word_probs.sum()
-     #    return sequence_probs.sum()
-     #    return log_word_probs
-     #    return word_probs
-     #    return one_hot_samples
-     #    return actual_probs
-     #    return sequence_probs
-     #    return sequence_distributions
         return expected_scores
-     #    return target_samples
-     #    return source_sentence_mask
-        # return readouts
-
-
 

@@ -144,10 +144,21 @@ class GRUInitialState(GatedRecurrent):
 
 
 class Decoder(Initializable):
-    """Decoder of RNNsearch model."""
+    """
+    Decoder of RNNsearch model.
+
+    Parameters:
+    -----------
+    vocab_size: int
+    embedding_dim: int
+    representation_dim: int
+    theano_seed: int
+    loss_function: str : {'cross_entropy'(default) | 'min_risk'}
+
+    """
 
     def __init__(self, vocab_size, embedding_dim, state_dim,
-                 representation_dim, theano_seed=None, **kwargs):
+                 representation_dim, theano_seed=None, loss_function='cross_entropy', **kwargs):
         super(Decoder, self).__init__(**kwargs)
         self.vocab_size = vocab_size
         self.embedding_dim = embedding_dim
@@ -185,25 +196,28 @@ class Decoder(Initializable):
             merged_dim=state_dim)
 
         # Build sequence generator accordingly
-        # self.sequence_generator = SequenceGenerator(
-        #     readout=readout,
-        #     transition=self.transition,
-        #     attention=self.attention,
-        #     fork=Fork([name for name in self.transition.apply.sequences
-        #                if name != 'mask'], prototype=Linear())
-        # )
+        if loss_function == 'cross_entropy':
+            self.sequence_generator = SequenceGenerator(
+                readout=readout,
+                transition=self.transition,
+                attention=self.attention,
+                fork=Fork([name for name in self.transition.apply.sequences
+                           if name != 'mask'], prototype=Linear())
+            )
+        elif loss_function == 'min_risk':
+            self.sequence_generator = MinRiskSequenceGenerator(
+                readout=readout,
+                transition=self.transition,
+                attention=self.attention,
+                fork=Fork([name for name in self.transition.apply.sequences
+                           if name != 'mask'], prototype=Linear())
+            )
+            # the name is important, because it lets us match the brick hierarchy names for the vanilla SequenceGenerator
+            # to load pretrained models
+            self.sequence_generator.name = 'sequencegenerator'
+        else:
+            raise ValueError('The decoder does not support the loss function: {}'.format(loss_function))
 
-        # TODO: make the type of SequenceGenerator externally configurable
-        self.sequence_generator = MinRiskSequenceGenerator(
-            readout=readout,
-            transition=self.transition,
-            attention=self.attention,
-            fork=Fork([name for name in self.transition.apply.sequences
-                       if name != 'mask'], prototype=Linear())
-        )
-        # the name is important, because it lets us match the brick hierarchy names for the vanilla SequenceGenerator
-        # to load pretrained models
-        self.sequence_generator.name = 'sequencegenerator'
 
         self.children = [self.sequence_generator]
 
@@ -228,7 +242,7 @@ class Decoder(Initializable):
         return (cost * target_sentence_mask).sum() / \
             target_sentence_mask.shape[1]
 
-    # TODO: TESTING ONLY
+    # Note: this requires the decoder to be using sequence_generator which implements expected cost
     @application(inputs=['representation', 'source_sentence_mask',
                          'target_samples_mask', 'target_samples', 'scores'],
                  outputs=['cost'])

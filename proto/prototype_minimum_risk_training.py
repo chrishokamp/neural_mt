@@ -64,8 +64,8 @@ except ImportError:
 # load a model that's already trained, and start tuning it with minimum-risk
 # mock-up training using the blocks main loop
 
-# TODO: change the way the models are run from the command line to allow more flexibility
-# TODO: in the way they are trained
+# TODO: Integrate configuration so min-risk training is a single line in the config file
+# TODO: this requires handling both the data stream and the Model cost function
 
 # create the graph which can sample from our model
 # Note that we must sample instead of getting the 1-best or N-best, because we need the randomness to make the expected
@@ -143,7 +143,7 @@ exp_config = {
     'val_burn_in': 0,
 
     # NEW PARAM FOR MIN RISK
-    'n_samples': 50 
+    'n_samples': 100
 
 }
 

@@ -155,7 +155,7 @@ def get_sampling_model_and_input(exp_config):
 
     decoder = Decoder(
         exp_config['trg_vocab_size'], exp_config['dec_embed'], exp_config['dec_nhids'],
-        exp_config['enc_nhids'] * 2)
+        exp_config['enc_nhids'] * 2, loss_function='min_risk')
 
     # Create Theano variables
     logger.info('Creating theano variables')

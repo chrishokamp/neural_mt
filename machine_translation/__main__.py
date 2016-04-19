@@ -14,7 +14,7 @@ import codecs
 import re
 import os
 import time
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, check_output
 
 import configurations
 
@@ -23,6 +23,7 @@ from machine_translation.stream import get_tr_stream, get_dev_stream
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # Get the arguments
 parser = argparse.ArgumentParser()
@@ -55,7 +56,6 @@ if __name__ == "__main__":
     elif mode == 'evaluate':
         logger.info("Started Evaluation: ")
         val_start_time = time.time()
-        # TODO: support more evaluation metrics than just BLEU score
 
         # translate if necessary, write output file, call external evaluation tools and show output
         translated_output_file = config_obj.get('translated_output_file', None)
@@ -71,6 +71,7 @@ if __name__ == "__main__":
             logger.info('Translated: {}, output was written to: {}'.format(config_obj['test_set'],
                                                                            translated_output_file))
 
+        # BLEU
         # get gold refs
         multibleu_cmd = ['perl', config_obj['bleu_script'],
                          config_obj['test_gold_refs'], '<']
@@ -97,6 +98,19 @@ if __name__ == "__main__":
         bleu_score = float(out_parse.group()[6:])
         logger.info('BLEU SCORE: {}'.format(bleu_score))
         mb_subprocess.terminate()
+
+        # Meteor
+        meteor_directory = config_obj.get('meteor_directory', None)
+        if meteor_directory is not None:
+            target_language = config_obj.get('target_language', 'de')
+            # java -Xmx2G -jar meteor-*.jar test reference - l en - norm
+            meteor_cmd = ['java', '-Xmx4G', '-jar', os.path.join(meteor_directory, 'meteor-1.5.jar'),
+                          translated_output_file, config_obj['test_gold_refs'], '-l', target_language, '-norm']
+
+            meteor_output = check_output(meteor_cmd)
+            meteor_score = float(meteor_output.strip().split('\n')[-1].split()[-1])
+            logger.info('METEOR SCORE: {}'.format(meteor_score))
+
 
     elif mode == 'server':
 

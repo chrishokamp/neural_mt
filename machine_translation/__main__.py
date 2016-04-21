@@ -102,8 +102,9 @@ if __name__ == "__main__":
         # Meteor
         meteor_directory = config_obj.get('meteor_directory', None)
         if meteor_directory is not None:
-            target_language = config_obj.get('target_language', 'de')
+            target_language = config_obj.get('target_lang', 'de')
             # java -Xmx2G -jar meteor-*.jar test reference - l en - norm
+            # Note: not using the `-norm` parameter with METEOR since the references are already tokenized
             meteor_cmd = ['java', '-Xmx4G', '-jar', os.path.join(meteor_directory, 'meteor-1.5.jar'),
                           translated_output_file, config_obj['test_gold_refs'], '-l', target_language, '-norm']
 

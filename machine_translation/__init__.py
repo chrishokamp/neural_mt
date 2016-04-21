@@ -134,12 +134,11 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
 
 
     # Set up beam search and sampling computation graphs if necessary
-
     if config['hook_samples'] >= 1 or config['bleu_script'] is not None:
         logger.info("Building sampling model")
         sampling_representation = encoder.apply(
             sampling_input, tensor.ones(sampling_input.shape))
-        # TODO: the generated output actually contains several more values, ipdb to see what they are
+        # note that generated containes several different outputs
         generated = decoder.generate(sampling_input, sampling_representation)
         search_model = Model(generated)
         _, samples = VariableFilter(

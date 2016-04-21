@@ -24,14 +24,15 @@ def _ensure_special_tokens(vocab, bos_idx=0, eos_idx=0, unk_idx=1):
 
 
 def _length(sentence_pair):
-    """Assumes target is the last element in the tuple."""
-    return len(sentence_pair[-1])
+    """Assumes target is the second element in the tuple."""
+    return len(sentence_pair[1])
 
 
 class PaddingWithEOS(Padding):
     """Padds a stream with given end of sequence idx."""
     def __init__(self, data_stream, eos_idx, **kwargs):
         kwargs['data_stream'] = data_stream
+        # note that eos_idx is a list containing the eos_idx for each source that will be padded
         self.eos_idx = eos_idx
         super(PaddingWithEOS, self).__init__(**kwargs)
 
@@ -217,7 +218,6 @@ def get_textfile_stream(source_file=None, src_vocab=None, src_vocab_size=30000,
         cPickle.load(open(src_vocab)),
         bos_idx=0, eos_idx=src_vocab_size - 1, unk_idx=unk_id)
     source_dataset = TextFile([source_file], src_vocab, bos_token=None)
-    # source_stream = DataStream(source_dataset)
     source_stream = source_dataset.get_example_stream()
     return source_stream
 

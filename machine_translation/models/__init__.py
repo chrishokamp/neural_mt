@@ -42,7 +42,7 @@ class MinRiskSequenceGenerator(SequenceGenerator):
                          'target_samples_mask', 'target_samples', 'scores'],
                  outputs=['cost'])
     def expected_cost(self, application_call, representation, source_sentence_mask,
-             target_samples, target_samples_mask, scores, **kwargs):
+             target_samples, target_samples_mask, scores, smoothing_constant=0.005, **kwargs):
         """
         emulate the process in sequence_generator.cost_matrix, but compute log probabilities instead of costs
         for each sample, we need its probability according to the model (these could actually be passed from the
@@ -115,8 +115,7 @@ class MinRiskSequenceGenerator(SequenceGenerator):
         # sequence_probs = tensor.exp(sequence_probs.reshape(scores.shape))
         sequence_probs = sequence_probs.reshape(scores.shape)
 
-        # TODO: make smoothing constant configurable
-        smoothing_constant = 0.005
+        # Note that the smoothing constant can be set by user
         sequence_distributions = (tensor.exp(sequence_probs*smoothing_constant) /
                                   tensor.exp(sequence_probs*smoothing_constant)
                                   .sum(axis=1, keepdims=True))

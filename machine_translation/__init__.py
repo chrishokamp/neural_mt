@@ -20,6 +20,7 @@ from blocks.initialization import IsotropicGaussian, Orthogonal, Constant
 from blocks.main_loop import MainLoop
 from blocks.model import Model
 from blocks.select import Selector
+from blocks.roles import WEIGHT
 from blocks.search import BeamSearch
 from blocks_extras.extensions.plot import Plot
 
@@ -59,8 +60,6 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
         encoder.apply(source_sentence, source_sentence_mask),
         source_sentence_mask, target_sentence, target_sentence_mask)
 
-    logger.info('Creating computational graph')
-    cg = ComputationGraph(cost)
 
     # Initialize model
     logger.info('Initializing model')
@@ -73,6 +72,25 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     decoder.transition.weights_init = Orthogonal()
     encoder.initialize()
     decoder.initialize()
+
+
+    logger.info('Creating computational graph')
+    cg = ComputationGraph(cost)
+
+    # GRAPH TRANSFORMATIONS FOR BETTER TRAINING
+    # TODO: validate performance with/without regularization
+    if config.get('l2_regularization', False) is True:
+        l2_reg_alpha = config['l2_regularization_alpha']
+        logger.info('Applying l2 regularization with alpha={}'.format(l2_reg_alpha))
+        model_weights = VariableFilter(roles=[WEIGHT])(cg.variables)
+
+        for W in model_weights:
+            cost = cost + (l2_reg_alpha * (W ** 2).sum())
+
+        # why do we need to name the cost variable? Where did the original name come from?
+        cost.name = 'decoder_cost_cost'
+
+    cg = ComputationGraph(cost)
 
     # apply dropout for regularization
     if config['dropout'] < 1.0:
@@ -131,7 +149,6 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
         CheckpointNMT(config['saveto'],
                       every_n_batches=config['save_freq'])
     ]
-
 
     # Set up beam search and sampling computation graphs if necessary
     if config['hook_samples'] >= 1 or config['bleu_script'] is not None:
@@ -237,7 +254,7 @@ def load_params_and_get_beam_search(exp_config):
     logger.info("Loading parameters from model: {}".format(exp_config['saved_parameters']))
 
     # load the parameter values from an .npz file
-    param_values = LoadNMT.load_parameter_values(exp_config['saved_parameters'])
+    param_values = LoadNMT.load_parameter_values(exp_config['saved_parameters'], brick_delimiter=exp_config.get('brick_delimiter', None))
     LoadNMT.set_model_parameters(model, param_values)
 
     return beam_search, sampling_input
@@ -290,7 +307,7 @@ class NMTPredictor:
         self.unk_idx = self.unk_idx
 
     def map_idx_or_unk(self, sentence, index, unknown_token='<UNK>'):
-        if type(sentence) is str:
+        if type(sentence) is str or type(sentence) is unicode:
             sentence = sentence.split()
         return [index.get(w, unknown_token) for w in sentence]
 
@@ -311,7 +328,7 @@ class NMTPredictor:
 
         # TODO: the tokenizer throws an error when the input file is opened with encoding='utf8'
         # why would this happen?
-        with codecs.open(input_file) as inp:
+        with codecs.open(input_file, encoding='utf8') as inp:
             for i, line in enumerate(inp.read().strip().split('\n')):
                 logger.info("Translating segment: {}".format(i))
 
@@ -327,7 +344,7 @@ class NMTPredictor:
                     total_cost += nbest_costs[0]
                 else:
                     # one blank line to separate each nbest list
-                    ftrans.write('\n'.join(nbest_translations) + '\n\n')
+                    ftrans.write('\n'.join(nbest_translations).decode('utf8') + '\n\n')
                     total_cost += sum(nbest_costs)
 
                 if i != 0 and i % 100 == 0:

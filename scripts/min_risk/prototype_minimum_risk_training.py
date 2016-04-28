@@ -26,7 +26,6 @@ from fuel.schemes import ConstantScheme
 from fuel.streams import DataStream
 from fuel.transformers import (
     Merge, Batch, Filter, Padding, SortMapping, Unpack, Mapping)
-from fuel.transformers import Transformer
 
 from blocks.algorithms import (GradientDescent, StepClipping,
                                CompositeRule, Adam, AdaDelta)
@@ -47,7 +46,7 @@ from machine_translation.sampling import BleuValidator, Sampler, SamplingBase
 from machine_translation.stream import (get_tr_stream, get_dev_stream,
                                         _ensure_special_tokens, MTSampleStreamTransformer,
                                         get_textfile_stream, _too_long, _length, PaddingWithEOS,
-                                        _oov_to_unk)
+                                        _oov_to_unk, CopySourceNTimes, FlattenSamples)
 from machine_translation.evaluation import sentence_level_bleu
 
 try:
@@ -167,20 +166,13 @@ def get_sampling_model_and_input(exp_config):
         sampling_input, tensor.ones(sampling_input.shape))
     generated = decoder.generate(sampling_input, sampling_representation)
 
-#     _, samples = VariableFilter(
-#         bricks=[decoder.sequence_generator], name="outputs")(
-#                  ComputationGraph(generated[1]))  # generated[1] is next_outputs
-#     beam_search = BeamSearch(samples=samples)
-
     # build the model that will let us get a theano function from the sampling graph
     logger.info("Creating Sampling Model...")
     sampling_model = Model(generated)
 
-
     return sampling_model, sampling_input, encoder, decoder
 
 sample_model, theano_sampling_input, train_encoder, train_decoder = get_sampling_model_and_input(exp_config)
-
 
 # test that we can pull samples from the model
 trg_vocab = cPickle.load(open(exp_config['trg_vocab']))
@@ -256,109 +248,7 @@ sampling_transformer = MTSampleStreamTransformer(sampling_func, sentence_level_b
 training_stream = Mapping(training_stream, sampling_transformer, add_sources=('samples', 'scores'))
 
 
-class FlattenSamples(Transformer):
-    """Adds padding to variable-length sequences.
 
-    When your batches consist of variable-length sequences, use this class
-    to equalize lengths by adding zero-padding. To distinguish between
-    data and padding masks can be produced. For each data source that is
-    masked, a new source will be added. This source will have the name of
-    the original source with the suffix ``_mask`` (e.g. ``features_mask``).
-
-    Elements of incoming batches will be treated as numpy arrays (i.e.
-    using `numpy.asarray`). If they have more than one dimension,
-    all dimensions except length, that is the first one, must be equal.
-
-    Parameters
-    ----------
-    data_stream : :class:`AbstractDataStream` instance
-        The data stream to wrap
-
-    """
-    def __init__(self, data_stream, **kwargs):
-        if data_stream.produces_examples:
-            raise ValueError('the wrapped data stream must produce batches of '
-                             'examples, not examples')
-        super(FlattenSamples, self).__init__(
-            data_stream, produces_examples=False, **kwargs)
-
-#         if mask_dtype is None:
-#             self.mask_dtype = config.floatX
-#         else:
-#             self.mask_dtype = mask_dtype
-
-    @property
-    def sources(self):
-        return self.data_stream.sources
-#         sources = []
-#         for source in self.data_stream.sources:
-#             sources.append(source)
-#             if source in self.mask_sources:
-#                 sources.append(source + '_mask')
-#         return tuple(sources)
-
-    def transform_batch(self, batch):
-        batch_with_flattened_samples = []
-        for i, (source, source_batch) in enumerate(
-                zip(self.data_stream.sources, batch)):
-#             if source not in self.mask_sources:
-#                 batch_with_masks.append(source_batch)
-#                 continue
-            if source == 'samples':
-                flattened_samples = []
-                for ins in source_batch:
-                    for sample in ins:
-                        flattened_samples.append(sample)
-                batch_with_flattened_samples.append(flattened_samples)
-            else:
-                batch_with_flattened_samples.append(source_batch)
-
-        return tuple(batch_with_flattened_samples)
-
-
-class CopySourceNTimes(Transformer):
-    """Duplicate the source N times to match the number of samples
-
-    We need this transformer because the attention model expects one source sequence for each
-    target sequence, but in the sampling case there are effectively (instances*sample_size) target sequences
-
-    Parameters
-    ----------
-    data_stream : :class:`AbstractDataStream` instance
-        The data stream to wrap
-    n_samples : int -- the number of samples that were generated for each source sequence
-
-    """
-    def __init__(self, data_stream, n_samples=5, **kwargs):
-        if data_stream.produces_examples:
-            raise ValueError('the wrapped data stream must produce batches of '
-                             'examples, not examples')
-        self.n_samples = n_samples
-
-        super(CopySourceNTimes, self).__init__(
-            data_stream, produces_examples=False, **kwargs)
-
-
-    @property
-    def sources(self):
-        return self.data_stream.sources
-
-    def transform_batch(self, batch):
-        batch_with_expanded_source = []
-        for i, (source, source_batch) in enumerate(
-                zip(self.data_stream.sources, batch)):
-            if source == 'source':
-#                 copy each source seqoyuence self.n_samples times, but keep the tensor 2d
-
-                expanded_source = []
-                for ins in source_batch:
-                    expanded_source.extend([ins for _ in range(self.n_samples)])
-
-                batch_with_expanded_source.append(expanded_source)
-            else:
-                batch_with_expanded_source.append(source_batch)
-
-        return tuple(batch_with_expanded_source)
 
 
 

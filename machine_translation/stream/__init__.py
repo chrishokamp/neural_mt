@@ -3,7 +3,7 @@ from fuel.datasets import TextFile
 from fuel.schemes import ConstantScheme
 from fuel.streams import DataStream
 from fuel.transformers import (
-    Merge, Batch, Filter, Padding, SortMapping, Unpack, Mapping)
+    Merge, Batch, Filter, Padding, SortMapping, Unpack, Mapping, Transformer)
 
 from six.moves import cPickle
 
@@ -207,6 +207,94 @@ class MTSampleStreamTransformer:
         """Call the scoring function to compare each sample to the reference"""
 
         return self.score_func(source, reference, samples)
+
+
+class FlattenSamples(Transformer):
+    """Look for a source called 'samples' in the data_stream, flatten the array of (batch_size, num_samples) to
+    (batch_size * num_samples)
+
+    Parameters
+    ----------
+    data_stream : :class:`AbstractDataStream` instance
+        The data stream to wrap
+
+    """
+    def __init__(self, data_stream, **kwargs):
+        if data_stream.produces_examples:
+            raise ValueError('the wrapped data stream must produce batches of '
+                             'examples, not examples')
+        super(FlattenSamples, self).__init__(
+            data_stream, produces_examples=False, **kwargs)
+
+#         if mask_dtype is None:
+#             self.mask_dtype = config.floatX
+#         else:
+#             self.mask_dtype = mask_dtype
+
+    @property
+    def sources(self):
+        return self.data_stream.sources
+
+    def transform_batch(self, batch):
+        batch_with_flattened_samples = []
+        for i, (source, source_batch) in enumerate(
+                zip(self.data_stream.sources, batch)):
+
+            if source == 'samples':
+                flattened_samples = []
+                for ins in source_batch:
+                    for sample in ins:
+                        flattened_samples.append(sample)
+                batch_with_flattened_samples.append(flattened_samples)
+            else:
+                batch_with_flattened_samples.append(source_batch)
+
+        return tuple(batch_with_flattened_samples)
+
+
+class CopySourceNTimes(Transformer):
+    """Duplicate the source N times to match the number of samples
+
+    We need this transformer because the attention model expects one source sequence for each
+    target sequence, but in the sampling case there are effectively (instances*sample_size) target sequences
+
+    Parameters
+    ----------
+    data_stream : :class:`AbstractDataStream` instance
+        The data stream to wrap
+    n_samples : int -- the number of samples that were generated for each source sequence
+
+    """
+    def __init__(self, data_stream, n_samples=5, **kwargs):
+        if data_stream.produces_examples:
+            raise ValueError('the wrapped data stream must produce batches of '
+                             'examples, not examples')
+        self.n_samples = n_samples
+
+        super(CopySourceNTimes, self).__init__(
+            data_stream, produces_examples=False, **kwargs)
+
+
+    @property
+    def sources(self):
+        return self.data_stream.sources
+
+    def transform_batch(self, batch):
+        batch_with_expanded_source = []
+        for i, (source, source_batch) in enumerate(
+                zip(self.data_stream.sources, batch)):
+            if source == 'source':
+#                 copy each source seqoyuence self.n_samples times, but keep the tensor 2d
+
+                expanded_source = []
+                for ins in source_batch:
+                    expanded_source.extend([ins for _ in range(self.n_samples)])
+
+                batch_with_expanded_source.append(expanded_source)
+            else:
+                batch_with_expanded_source.append(source_batch)
+
+        return tuple(batch_with_expanded_source)
 
 
 def get_textfile_stream(source_file=None, src_vocab=None, src_vocab_size=30000,

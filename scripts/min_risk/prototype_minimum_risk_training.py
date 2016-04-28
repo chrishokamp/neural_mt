@@ -195,7 +195,7 @@ trg_vocab = _ensure_special_tokens(trg_vocab, bos_idx=0,
 
 theano_sample_func = sample_model.get_theano_function()
 
-# close over the sampling func and the trg_vocab to standardize the interface
+# note: we close over the sampling func and the trg_vocab to standardize the interface
 # TODO: actually this should be a callable class with params (sampling_func, trg_vocab)
 # TODO: we may be able to make this function faster by passing multiple sources for sampling at the same damn time
 # TODO: or by avoiding the for loop somehow

@@ -185,28 +185,33 @@ class MTSampleStreamTransformer:
 
     """
 
-    def __init__(self, sample_func, score_func, num_samples=1):
+    def __init__(self, sample_func, score_func, num_samples=1, **kwargs):
         self.sample_func = sample_func
         self.score_func = score_func
         self.num_samples = num_samples
+        # kwargs will get passed to self.score_func when it gets called
+        self.kwargs = kwargs
 
-    def __call__(self, data):
+    def __call__(self, data, **kwargs):
         source = data[0]
         reference = data[1]
+        # import ipdb; ipdb.set_trace()
 
         # each sample may be of different length
         samples = self.sample_func(numpy.array(source), self.num_samples)
         # TODO: we currently have to pass the source because of the interface to mteval_v13
-        scores = numpy.array(self._compute_scores(source, reference, samples)).astype('float32')
+        scores = numpy.array(self._compute_scores(source, reference, samples, **self.kwargs)).astype('float32')
 
         return (samples, scores)
 
     # Note that many sentence-level metrics like BLEU can be computed directly over the indexes (not the strings),
+    # Note that some sentence-level metrics like METEOR require the string representation
+    # if the scoring function needs to map from ints to strings, provide 'src_vocab' and 'trg_vocab' via the kwargs
     # So we don't need to map back to a string representation
-    def _compute_scores(self, source, reference, samples):
+    def _compute_scores(self, source, reference, samples, **kwargs):
         """Call the scoring function to compare each sample to the reference"""
 
-        return self.score_func(source, reference, samples)
+        return self.score_func(source, reference, samples, **kwargs)
 
 
 class FlattenSamples(Transformer):

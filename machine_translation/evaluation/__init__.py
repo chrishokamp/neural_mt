@@ -2,6 +2,8 @@ import tempfile
 import subprocess
 import os
 
+from machine_translation.sampling import SamplingBase
+
 import logging
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -18,8 +20,7 @@ def mteval_13(source_file, reference_file, hypothesis_file, src_lang='en', trg_l
     :return: list of sentence level BLEU for each segment
     '''
 
-    # WORKING: delete the named temporary files created in this function
-
+    # TODO: delete the named temporary files created in this function
     wrap_xml_script = os.path.join(script_dir, 'wrap-xml-modified.perl')
 
     flags = ['src', 'ref', 'tst']
@@ -66,9 +67,6 @@ def mteval_13(source_file, reference_file, hypothesis_file, src_lang='en', trg_l
 
     # now compute the segment-level BLEU scores
     mteval_2013_script = os.path.join(script_dir, 'mteval-v13a.pl')
-#     mteval_2013_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts', 'mteval-v13a.pl')
-#     mteval_cmd = ['perl', mteval_2013_script, '-r', reference_file, '-s',
-#                   source_file, '-t', decoded_file, '-b', '-d', '2']
     mteval_cmd = ['perl', mteval_2013_script, '-r', ref_sgm_name, '-s',
                   source_sgm_name, '-t', hyp_sgm_file, '-b', '-d', '2']
     logger.debug(' '.join(mteval_cmd))
@@ -118,3 +116,64 @@ def sentence_level_bleu(src, ref, samples):
     scores = mteval_13(src_file.name, ref_file.name, trg_file.name)
 
     return scores
+
+
+# sentence level METEOR scores
+# TODO: we really shouldn't need to pass the source here
+# TODO: we pass source to keep interface consistent with mteval_v13 interface for BLEU
+# Note: we assume ref and samples are sequences of ints created from the same vocabulary, so there should be no OOVs
+def sentence_level_meteor(src, ref, samples, level='sentence', **kwargs):
+
+    try:
+        trg_ivocab = kwargs['trg_ivocab']
+        lang = kwargs['lang']
+        meteor_directory = kwargs['meteor_directory']
+        unk_idx = kwargs.get('unk_idx', 1)
+    except ValueError:
+        print('The METEOR scoring function needs `trg_ivocab`, `lang`, and `meteor_directory` in kwargs')
+        raise
+
+    # create temporary files
+    num_samples = len(samples)
+    ref_file = tempfile.NamedTemporaryFile(delete=False)
+    trg_file = tempfile.NamedTemporaryFile(delete=False)
+
+    # Note that we need to map back to strings here because the output of the model is ints
+    # WORKING: we need to account for cases where a word is _not_ in the vocab
+    # TODO: right now the unknown index = 1 is hard-coded
+    with open(ref_file.name, 'wb') as out:
+        for _ in range(num_samples):
+            out.write(' '.join([trg_ivocab[i] for i in ref]) + '\n')
+    with open(trg_file.name, 'wb') as out:
+        # import ipdb; ipdb.set_trace()
+        for s in samples:
+            out.write(' '.join([trg_ivocab[i] if i in trg_ivocab else trg_ivocab[unk_idx] for i in s]) + '\n')
+
+    if level == 'sentence':
+        # TODO: detokenize so that it's the really real METEOR evaluation?
+        # Note: is it ok to use the `-norm` parameter with METEOR since the references are already tokenized?
+        meteor_cmd = ['java', '-Xmx4G', '-jar', os.path.join(meteor_directory, 'meteor-1.5.jar'),
+                      trg_file.name, ref_file.name, '-l', lang, '-norm']
+
+        meteor_output = subprocess.check_output(meteor_cmd)
+
+        # meteor_score = float(meteor_output.strip().split('\n')[-1].split()[-1])
+        # logger.info('METEOR SCORE: {}'.format(meteor_score))
+        # print('METEOR SCORE: {}'.format(meteor_score))
+
+        def _parse_meteor_segment_line(line):
+            return float(line.strip().split('\t')[-1])
+
+        segment_scores = [_parse_meteor_segment_line(line)
+                          for line in meteor_output.strip().split('\n')
+                          if 'Segment' in line]
+
+        assert len(segment_scores) == num_samples, 'Metric must return one score for each hypothesis'
+
+    else:
+        raise ValueError('Unknown granularity level for METEOR: {}'.format(level))
+
+    one_minus_segment_scores = [1.-s for s in segment_scores]
+
+    return one_minus_segment_scores
+

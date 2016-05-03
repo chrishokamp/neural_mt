@@ -42,12 +42,13 @@ from blocks_extras.extensions.plot import Plot
 
 from machine_translation.checkpoint import CheckpointNMT, LoadNMT
 from machine_translation.model import BidirectionalEncoder, Decoder
-from machine_translation.sampling import BleuValidator, Sampler, SamplingBase
+from machine_translation.sampling import BleuValidator, Sampler, SamplingBase, MeteorValidator
+from machine_translation.sample import SampleFunc
 from machine_translation.stream import (get_tr_stream, get_dev_stream,
                                         _ensure_special_tokens, MTSampleStreamTransformer,
                                         get_textfile_stream, _too_long, _length, PaddingWithEOS,
                                         _oov_to_unk, CopySourceNTimes, FlattenSamples)
-from machine_translation.evaluation import sentence_level_bleu
+from machine_translation.evaluation import sentence_level_bleu, sentence_level_meteor
 
 try:
     from blocks_extras.extensions.plot import Plot
@@ -70,8 +71,9 @@ except ImportError:
 # Note that we must sample instead of getting the 1-best or N-best, because we need the randomness to make the expected
 # BLEU score make sense
 
-BASEDIR = '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BERTHA-TEST_Adam_wmt-multimodal_internal_data_dropout'+\
-          '0.3_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/'
+# BASEDIR = '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BERTHA-TEST_Adam_wmt-multimodal_internal_data_dropout'+\
+#           '0.3_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/'
+BASEDIR = '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed'
 #best_bleu_model_1455464992_BLEU31.61.npz
 
 exp_config = {
@@ -81,15 +83,16 @@ exp_config = {
     'dec_embed': 300,
     'enc_nhids': 800,
     'dec_nhids': 800,
-    'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BERTHA-TEST_wmt-multimodal_internal_data_dropout0.3_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_bleu_model_1455410311_BLEU30.38.npz',
+    # 'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BERTHA-TEST_wmt-multimodal_internal_data_dropout0.3_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_bleu_model_1455410311_BLEU30.38.npz',
+    'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BASELINE_WITH_REGULARIZATION0.0001_WEIGHT_SCALE_0.1_wmt-multimodal_internal_data_dropout0.5_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_bleu_model_1461853863_BLEU32.80.npz',
     'src_vocab': os.path.join(BASEDIR, 'vocab.en-de.en.pkl'),
     'trg_vocab': os.path.join(BASEDIR, 'vocab.en-de.de.pkl'),
-    'src_data': os.path.join(BASEDIR, 'training_data/train.en.tok.shuf'),
-    'trg_data': os.path.join(BASEDIR, 'training_data/train.de.tok.shuf'),
+    'src_data': os.path.join(BASEDIR, 'train.en.tok.shuf'),
+    'trg_data': os.path.join(BASEDIR, 'train.de.tok.shuf'),
     'unk_id':1,
     # Bleu script that will be used (moses multi-perl in this case)
-    'bleu_script': os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                '../test_data/sample_experiment/tiny_demo_dataset/multi-bleu.perl'),
+    # 'bleu_script': os.path.join(os.path.dirname(os.path.realpath(__file__)),
+    #                             '../test_data/sample_experiment/tiny_demo_dataset/multi-bleu.perl'),
 
     # Optimization related ----------------------------------------------------
     # Batch size
@@ -101,7 +104,7 @@ exp_config = {
     # Gradient clipping threshold
     'step_clipping': 1.,
     # Std of weight initialization
-    'weight_scale': 0.01,
+    'weight_scale': 0.1,
     'seq_len': 40,
     # Beam-size
     'beam_size': 10,
@@ -126,8 +129,8 @@ exp_config = {
     # Normalize cost according to sequence length after beam-search
     'normalized_bleu': True,
     
-    'saveto': '/media/1tb_drive/test_min_risk_model_save',
-    'model_save_directory': 'test_min_risk_model_save',
+    'saveto': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed',
+    'model_save_directory': 'MIN-RISK-SANITY-MODEL',
     # Validation set source file
     'val_set': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/dev.en.tok',
 
@@ -141,8 +144,14 @@ exp_config = {
     'val_set_out': '/media/1tb_drive/test_min_risk_model_save/validation_out.txt',
     'val_burn_in': 0,
 
+    'source_lang': 'en',
+    'target_lang': 'de',
+
     # NEW PARAM FOR MIN RISK
-    'n_samples': 100
+    'n_samples': 50,
+
+    'meteor_directory': '/home/chris/programs/meteor-1.5',
+    # 'brick_delimiter': '-'
 
 }
 
@@ -188,48 +197,54 @@ trg_vocab = _ensure_special_tokens(trg_vocab, bos_idx=0,
 theano_sample_func = sample_model.get_theano_function()
 
 # note: we close over the sampling func and the trg_vocab to standardize the interface
-# TODO: actually this should be a callable class with params (sampling_func, trg_vocab)
-# TODO: we may be able to make this function faster by passing multiple sources for sampling at the same damn time
-# TODO: or by avoiding the for loop somehow
-def sampling_func(source_seq, num_samples=1):
+# def sampling_func(source_seq, num_samples=1):
+#
+#     def _get_true_length(seqs, vocab):
+#         try:
+#             lens = []
+#             for r in seqs.tolist():
+#                 lens.append(r.index(vocab['</S>']) + 1)
+#             return lens
+#         except ValueError:
+#             return [seqs.shape[1] for _ in range(seqs.shape[0])]
+#
+#     # samples = []
+#     # for _ in range(num_samples):
+#         # outputs of self.sampling_fn = outputs of sequence_generator.generate: next_states + [next_outputs] +
+#         #                 list(next_glimpses.values()) + [next_costs])
+#         # _1, outputs, _2, _3, costs = theano_sample_func(source_seq[None, :])
+#         # if we are generating a single sample, the length of the output will be len(source_seq)*2
+#         # see decoder.generate
+#         # the output is a [seq_len, 1] array
+#         # outputs = outputs.reshape(outputs.shape[0])
+#         # outputs = outputs[:_get_true_length(outputs, trg_vocab)]
+#         # samples.append(outputs)
+#
+#     inputs = numpy.tile(source_seq[None, :], (num_samples, 1))
+#     # the output is [seq_len, batch]
+#     _1, outputs, _2, _3, costs = theano_sample_func(inputs)
+#     outputs = outputs.T
+#
+#     # TODO: this step could be avoided by computing the samples mask in a different way
+#     lens = _get_true_length(outputs, trg_vocab)
+#     samples = [s[:l] for s,l in zip(outputs.tolist(), lens)]
+#
+#     return samples
 
-    def _get_true_length(seqs, vocab):
-        try:
-            lens = []
-            for r in seqs.tolist():
-                lens.append(r.index(vocab['</S>']) + 1)
-            return lens
-        except ValueError:
-            return [seqs.shape[1] for _ in range(seqs.shape[0])]
+sampling_func = SampleFunc(theano_sample_func, trg_vocab)
 
-    # samples = []
-    # for _ in range(num_samples):
-        # outputs of self.sampling_fn = outputs of sequence_generator.generate: next_states + [next_outputs] +
-        #                 list(next_glimpses.values()) + [next_costs])
-        # _1, outputs, _2, _3, costs = theano_sample_func(source_seq[None, :])
-        # if we are generating a single sample, the length of the output will be len(source_seq)*2
-        # see decoder.generate
-        # the output is a [seq_len, 1] array
-        # outputs = outputs.reshape(outputs.shape[0])
-        # outputs = outputs[:_get_true_length(outputs, trg_vocab)]
-        # samples.append(outputs)
+# TODO: implement min-risk METEOR
+# TODO: compare min-risk BLEU with baseline Moses
+# '/home/chris/programs/meteor-1.5'
 
-    inputs = numpy.tile(source_seq[None, :], (num_samples, 1))
-    # the output is [seq_len, batch]
-    _1, outputs, _2, _3, costs = theano_sample_func(inputs)
-    outputs = outputs.T
-
-    # TODO: this step could be avoided by computing the samples mask in a different way
-    lens = _get_true_length(outputs, trg_vocab)
-    samples = [s[:l] for s,l in zip(outputs.tolist(), lens)]
-
-    return samples
+# trg_ivocab = kwargs['trg_ivocab']
+# lang = kwargs['lang']
+# meteor_directory = kwargs['meteor_directory']
 
 
 src_stream = get_textfile_stream(source_file=exp_config['src_data'], src_vocab=exp_config['src_vocab'],
                                          src_vocab_size=exp_config['src_vocab_size'])
 
-# test_source_stream.sources = ('sources',)
 trg_stream = get_textfile_stream(source_file=exp_config['trg_data'], src_vocab=exp_config['trg_vocab'],
                                          src_vocab_size=exp_config['trg_vocab_size'])
 
@@ -242,27 +257,33 @@ training_stream = Merge([src_stream,
 training_stream = Filter(training_stream,
                          predicate=_too_long(seq_len=exp_config['seq_len']))
 
-# sampling_transformer = MTSampleStreamTransformer(sampling_func, fake_score, num_samples=5)
-sampling_transformer = MTSampleStreamTransformer(sampling_func, sentence_level_bleu, num_samples=exp_config['n_samples'])
+# TODO: configure min-risk score func from yaml
+# BLEU
+# sampling_transformer = MTSampleStreamTransformer(sampling_func,
+#                                                  sentence_level_bleu,
+#                                                  num_samples=exp_config['n_samples'])
+
+# METEOR
+trg_ivocab = {v:k for k,v in trg_vocab.items()}
+import ipdb;ipdb.set_trace()
+# import ipdb; ipdb.set_trace()
+# WORKING: pass kwargs through the SampleStreamTransformer to the scoring function
+sampling_transformer = MTSampleStreamTransformer(sampling_func,
+                                                 sentence_level_meteor,
+                                                 num_samples=exp_config['n_samples'],
+                                                 trg_ivocab=trg_ivocab,
+                                                 lang=exp_config['target_lang'],
+                                                 meteor_directory=exp_config['meteor_directory']
+                                                )
 
 training_stream = Mapping(training_stream, sampling_transformer, add_sources=('samples', 'scores'))
 
-
-
-
-
-
-# Replace out of vocabulary tokens with unk token
-# training_stream = Mapping(training_stream,
-#                  _oov_to_unk(src_vocab_size=exp_config['src_vocab_size'],
-#                              trg_vocab_size=exp_config['trg_vocab_size'],
-#                              unk_id=exp_config['unk_id']))
-
 # Build a batched version of stream to read k batches ahead
 training_stream = Batch(training_stream,
-               iteration_scheme=ConstantScheme(
-                   exp_config['batch_size']*exp_config['sort_k_batches']))
+                        iteration_scheme=ConstantScheme(
+                        exp_config['batch_size']*exp_config['sort_k_batches']))
 
+# TODO: add read-ahead shuffling Mapping similar to SortMapping
 # Sort all samples in the read-ahead batch
 training_stream = Mapping(training_stream, SortMapping(_length))
 
@@ -319,7 +340,7 @@ def main(model, cost, config, tr_stream, dev_stream, use_bokeh=False):
     # Set the parameters from a trained models (.npz file)
     logger.info("Loading parameters from model: {}".format(exp_config['saved_parameters']))
     # Note the brick delimeter='-' is here for legacy reasons because blocks changed the serialization API
-    param_values = LoadNMT.load_parameter_values(config['saved_parameters'], brick_delimiter='-')
+    param_values = LoadNMT.load_parameter_values(exp_config['saved_parameters'], brick_delimiter=exp_config.get('brick_delimiter', None))
     LoadNMT.set_model_parameters(model, param_values)
 
     logger.info('Creating computational graph')
@@ -364,13 +385,22 @@ def main(model, cost, config, tr_stream, dev_stream, use_bokeh=False):
                     src_vocab_size=config['src_vocab_size']))
 
     # Add early stopping based on bleu
-    if config['bleu_script'] is not None:
+    if config.get('bleu_script', None) is not None:
         logger.info("Building bleu validator")
         extensions.append(
             BleuValidator(theano_sampling_input, samples=samples, config=config,
                           model=search_model, data_stream=dev_stream,
                           normalize=config['normalized_bleu'],
                           every_n_batches=config['bleu_val_freq']))
+
+    # Add early stopping based on bleu
+    if config.get('meteor_directory', None) is not None:
+        logger.info("Building meteor validator")
+        extensions.append(
+            MeteorValidator(theano_sampling_input, samples=samples, config=config,
+                            model=search_model, data_stream=dev_stream,
+                            normalize=config['normalized_bleu'],
+                            every_n_batches=config['bleu_val_freq']))
 
     # Reload model if necessary
     if config['reload']:
@@ -379,11 +409,14 @@ def main(model, cost, config, tr_stream, dev_stream, use_bokeh=False):
     # Plot cost in bokeh if necessary
     if use_bokeh and BOKEH_AVAILABLE:
         extensions.append(
-            Plot(config['model_save_directory'], channels=[['decoder_cost_cost'], ['validation_set_bleu_score']],
+            Plot(config['model_save_directory'], channels=[['decoder_cost_cost'], ['validation_set_meteor_score']],
                  every_n_batches=10))
 
     # Set up training algorithm
     logger.info("Initializing training algorithm")
+
+    # TODO: reenable dropout and add L2 regularization as in the main config
+
     # if there is dropout or random noise, we need to use the output of the modified graph
 #     if config['dropout'] < 1.0 or config['weight_noise_ff'] > 0.0:
 #         algorithm = GradientDescent(

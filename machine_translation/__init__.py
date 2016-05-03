@@ -26,7 +26,7 @@ from blocks_extras.extensions.plot import Plot
 
 from machine_translation.checkpoint import CheckpointNMT, LoadNMT
 from machine_translation.model import BidirectionalEncoder, Decoder
-from machine_translation.sampling import BleuValidator, Sampler, SamplingBase
+from machine_translation.sampling import BleuValidator, Sampler, SamplingBase, MeteorValidator
 from machine_translation.stream import (get_tr_stream, get_dev_stream,
                                         _ensure_special_tokens)
 
@@ -72,7 +72,6 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     decoder.transition.weights_init = Orthogonal()
     encoder.initialize()
     decoder.initialize()
-
 
     logger.info('Creating computational graph')
     cg = ComputationGraph(cost)
@@ -172,10 +171,19 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
                     src_vocab_size=config['src_vocab_size']))
 
     # Add early stopping based on bleu
-    if config['bleu_script'] is not None:
+    if config.get('bleu_script', None) is not None:
         logger.info("Building bleu validator")
         extensions.append(
             BleuValidator(sampling_input, samples=samples, config=config,
+                          model=search_model, data_stream=dev_stream,
+                          normalize=config['normalized_bleu'],
+                          every_n_batches=config['bleu_val_freq']))
+
+    # Add early stopping based on bleu
+    if config.get('meteor_directory', None) is not None:
+        logger.info("Building meteor validator")
+        extensions.append(
+            MeteorValidator(sampling_input, samples=samples, config=config,
                           model=search_model, data_stream=dev_stream,
                           normalize=config['normalized_bleu'],
                           every_n_batches=config['bleu_val_freq']))
@@ -187,7 +195,8 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     # Plot cost in bokeh if necessary
     if use_bokeh and BOKEH_AVAILABLE:
         extensions.append(
-            Plot(config['model_save_directory'], channels=[['decoder_cost_cost'], ['validation_set_bleu_score']],
+            Plot(config['model_save_directory'], channels=[['decoder_cost_cost'], ['validation_set_bleu_score'],
+                                                           ['validation_set_meteor_score']],
                  every_n_batches=10))
 
     # Set up training algorithm

@@ -112,6 +112,8 @@ class Sampler(SimpleExtension, SamplingBase):
         hook_samples = min(batch_size, self.hook_samples)
 
         # TODO: this is problematic for boundary conditions, eg. last batch
+        # TODO: this method of getting samples also doesn't work for min-risk 
+        # TODO: because of the way 'batch_size' for source is retrieved (4 lines up)
         sample_idx = numpy.random.choice(
             batch_size, hook_samples, replace=False)
         src_batch = batch[self.main_loop.data_stream.mask_sources[0]]

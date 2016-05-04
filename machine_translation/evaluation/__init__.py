@@ -138,8 +138,9 @@ def sentence_level_meteor(src, ref, samples, level='sentence', **kwargs):
     ref_file = tempfile.NamedTemporaryFile(delete=False)
     trg_file = tempfile.NamedTemporaryFile(delete=False)
 
-    # Note that we need to map back to strings here because the output of the model is ints
-    # WORKING: we need to account for cases where a word is _not_ in the vocab
+    # NOTE: we need to map back to strings here because the output of the model is ints
+    # NOTE: we need to account for cases where a sampled word is _not_ in the vocab
+    # NOTE: this can only happen when the vocab size is larger than the actual number of tokens (i.e. flickr30k)
     # TODO: right now the unknown index = 1 is hard-coded
     with open(ref_file.name, 'wb') as out:
         for _ in range(num_samples):

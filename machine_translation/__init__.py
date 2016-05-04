@@ -77,7 +77,6 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     cg = ComputationGraph(cost)
 
     # GRAPH TRANSFORMATIONS FOR BETTER TRAINING
-    # TODO: validate performance with/without regularization
     if config.get('l2_regularization', False) is True:
         l2_reg_alpha = config['l2_regularization_alpha']
         logger.info('Applying l2 regularization with alpha={}'.format(l2_reg_alpha))
@@ -179,7 +178,7 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
                           normalize=config['normalized_bleu'],
                           every_n_batches=config['bleu_val_freq']))
 
-    # Add early stopping based on bleu
+    # Add early stopping based on Meteor
     if config.get('meteor_directory', None) is not None:
         logger.info("Building meteor validator")
         extensions.append(

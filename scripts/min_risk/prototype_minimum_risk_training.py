@@ -19,6 +19,8 @@ import copy
 from collections import OrderedDict
 import itertools
 from theano import tensor
+import shutil
+import yaml
 
 from fuel.datasets import Dataset
 from fuel.datasets import TextFile
@@ -37,6 +39,7 @@ from blocks.initialization import IsotropicGaussian, Orthogonal, Constant
 from blocks.main_loop import MainLoop
 from blocks.model import Model
 from blocks.select import Selector
+from blocks.roles import WEIGHT
 from blocks.search import BeamSearch
 from blocks_extras.extensions.plot import Plot
 
@@ -55,8 +58,6 @@ try:
     BOKEH_AVAILABLE = True
 except ImportError:
     BOKEH_AVAILABLE = False
-
-
 
 # build the training and sampling graphs for minimum risk training
 # Intialize the MTSampleStreamTransformer with the sampling function
@@ -83,8 +84,6 @@ exp_config = {
     'dec_embed': 300,
     'enc_nhids': 800,
     'dec_nhids': 800,
-    # 'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BERTHA-TEST_wmt-multimodal_internal_data_dropout0.3_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_bleu_model_1455410311_BLEU30.38.npz',
-    'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BASELINE_WITH_REGULARIZATION0.0001_WEIGHT_SCALE_0.1_wmt-multimodal_internal_data_dropout0.5_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_bleu_model_1461853863_BLEU32.80.npz',
     'src_vocab': os.path.join(BASEDIR, 'vocab.en-de.en.pkl'),
     'trg_vocab': os.path.join(BASEDIR, 'vocab.en-de.de.pkl'),
     'src_data': os.path.join(BASEDIR, 'train.en.tok.shuf'),
@@ -96,9 +95,9 @@ exp_config = {
 
     # Optimization related ----------------------------------------------------
     # Batch size
-    'batch_size': 8,
+    'batch_size': 10,
     # This many batches will be read ahead and sorted
-    'sort_k_batches': 2,
+    'sort_k_batches': 1,
     # Optimization step rule
     'step_rule': 'AdaDelta',
     # Gradient clipping threshold
@@ -107,10 +106,15 @@ exp_config = {
     'weight_scale': 0.1,
     'seq_len': 40,
     # Beam-size
-    'beam_size': 10,
+    'beam_size': 20,
+    # dropout
+    'dropout': 0.5,
+    # l2_reg
+    'l2_regularization': True,
+    'l2_regularization_alpha': 0.0001,
 
     # Maximum number of updates
-    'finish_after': 1000000,
+    'finish_after': 10000,
 
     # Reload model from files if exist
     'reload': False,
@@ -128,9 +132,7 @@ exp_config = {
     'bleu_val_freq': 10,
     # Normalize cost according to sequence length after beam-search
     'normalized_bleu': True,
-    
-    'saveto': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed',
-    'model_save_directory': 'MIN-RISK-SANITY-MODEL',
+
     # Validation set source file
     'val_set': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/dev.en.tok',
 
@@ -148,12 +150,19 @@ exp_config = {
     'target_lang': 'de',
 
     # NEW PARAM FOR MIN RISK
-    'n_samples': 50,
+    'n_samples': 60,
 
     'meteor_directory': '/home/chris/programs/meteor-1.5',
     # 'brick_delimiter': '-'
 
+    # 'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BERTHA-TEST_wmt-multimodal_internal_data_dropout0.3_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_bleu_model_1455410311_BLEU30.38.npz',
+    #'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BASELINE_WITH_REGULARIZATION0.0001_WEIGHT_SCALE_0.1_wmt-multimodal_internal_data_dropout0.5_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_bleu_model_1461853863_BLEU32.80.npz',
+    'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BASELINE_METEOR_CHECKPOINT_WITH_REGULARIZATION0.0001_WEIGHT_SCALE_0.1_wmt-multimodal_internal_data_dropout0.5_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_model_1462312300_METEOR0.52.npz',
+    'saveto': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/MIN-RISK-DROPOUT0.5-l2reg0.0001-n_samples60-batch10',
+    'model_save_directory': 'MIN-RISK-DROPOUT0.5-l2reg0.0001-n_samples60-batch10',
 }
+
+# TODO: load config from .yaml file -- this will let us be dynamic with the run names, which is a big advantage
 
 
 def get_sampling_model_and_input(exp_config):
@@ -196,51 +205,7 @@ trg_vocab = _ensure_special_tokens(trg_vocab, bos_idx=0,
 
 theano_sample_func = sample_model.get_theano_function()
 
-# note: we close over the sampling func and the trg_vocab to standardize the interface
-# def sampling_func(source_seq, num_samples=1):
-#
-#     def _get_true_length(seqs, vocab):
-#         try:
-#             lens = []
-#             for r in seqs.tolist():
-#                 lens.append(r.index(vocab['</S>']) + 1)
-#             return lens
-#         except ValueError:
-#             return [seqs.shape[1] for _ in range(seqs.shape[0])]
-#
-#     # samples = []
-#     # for _ in range(num_samples):
-#         # outputs of self.sampling_fn = outputs of sequence_generator.generate: next_states + [next_outputs] +
-#         #                 list(next_glimpses.values()) + [next_costs])
-#         # _1, outputs, _2, _3, costs = theano_sample_func(source_seq[None, :])
-#         # if we are generating a single sample, the length of the output will be len(source_seq)*2
-#         # see decoder.generate
-#         # the output is a [seq_len, 1] array
-#         # outputs = outputs.reshape(outputs.shape[0])
-#         # outputs = outputs[:_get_true_length(outputs, trg_vocab)]
-#         # samples.append(outputs)
-#
-#     inputs = numpy.tile(source_seq[None, :], (num_samples, 1))
-#     # the output is [seq_len, batch]
-#     _1, outputs, _2, _3, costs = theano_sample_func(inputs)
-#     outputs = outputs.T
-#
-#     # TODO: this step could be avoided by computing the samples mask in a different way
-#     lens = _get_true_length(outputs, trg_vocab)
-#     samples = [s[:l] for s,l in zip(outputs.tolist(), lens)]
-#
-#     return samples
-
 sampling_func = SampleFunc(theano_sample_func, trg_vocab)
-
-# TODO: implement min-risk METEOR
-# TODO: compare min-risk BLEU with baseline Moses
-# '/home/chris/programs/meteor-1.5'
-
-# trg_ivocab = kwargs['trg_ivocab']
-# lang = kwargs['lang']
-# meteor_directory = kwargs['meteor_directory']
-
 
 src_stream = get_textfile_stream(source_file=exp_config['src_data'], src_vocab=exp_config['src_vocab'],
                                          src_vocab_size=exp_config['src_vocab_size'])
@@ -257,7 +222,8 @@ training_stream = Merge([src_stream,
 training_stream = Filter(training_stream,
                          predicate=_too_long(seq_len=exp_config['seq_len']))
 
-# TODO: configure min-risk score func from yaml
+# TODO: configure min-risk score func from the yaml config
+
 # BLEU
 # sampling_transformer = MTSampleStreamTransformer(sampling_func,
 #                                                  sentence_level_bleu,
@@ -305,7 +271,7 @@ expanded_source_stream = CopySourceNTimes(flat_sample_stream, n_samples=exp_conf
 masked_stream = PaddingWithEOS(
     expanded_source_stream, [exp_config['src_vocab_size'] - 1, exp_config['trg_vocab_size'] - 1])
 
-
+# create the model for training
 def create_model(encoder, decoder):
 
     # Create Theano variables
@@ -331,7 +297,6 @@ def create_model(encoder, decoder):
         encoder.apply(source_sentence, source_sentence_mask),
         source_sentence_mask, samples, samples_mask, scores)
 
-
     return cost
 
 
@@ -346,10 +311,39 @@ def main(model, cost, config, tr_stream, dev_stream, use_bokeh=False):
     logger.info('Creating computational graph')
     cg = ComputationGraph(cost)
 
+    # GRAPH TRANSFORMATIONS FOR BETTER TRAINING
+    if config.get('l2_regularization', False) is True:
+        l2_reg_alpha = config['l2_regularization_alpha']
+        logger.info('Applying l2 regularization with alpha={}'.format(l2_reg_alpha))
+        model_weights = VariableFilter(roles=[WEIGHT])(cg.variables)
+
+        for W in model_weights:
+            cost = cost + (l2_reg_alpha * (W ** 2).sum())
+
+        # why do we need to rename the cost variable? Where did the original name come from?
+        cost.name = 'decoder_cost_cost'
+
+    cg = ComputationGraph(cost)
+
+    # apply dropout for regularization
+    # Note dropout variables are hard-coded here
+    if config['dropout'] < 1.0:
+        # dropout is applied to the output of maxout in ghog
+        # this is the probability of dropping out, so you probably want to make it <=0.5
+        logger.info('Applying dropout')
+        dropout_inputs = [x for x in cg.intermediary_variables
+                          if x.name == 'maxout_apply_output']
+        cg = apply_dropout(cg, dropout_inputs, config['dropout'])
+
     # create the training directory, and copy this config there if directory doesn't exist
-#     if not os.path.isdir(config['saveto']):
-#         os.makedirs(config['saveto'])
-#         shutil.copy(config['config_file'], config['saveto'])
+    if not os.path.isdir(config['saveto']):
+        os.makedirs(config['saveto'])
+        # TODO: mv the actual config file once we switch to .yaml for min-risk
+        # shutil.copy(config['config_file'], config['saveto'])
+        # shutil.copy(config['config_file'], config['saveto'])
+
+        with codecs.open(os.path.join(config['saveto'], 'config.yaml'), 'w', encoding='utf8') as yaml_out:
+            yaml_out.write(yaml.dump(config))
 
     # Set extensions
     logger.info("Initializing extensions")
@@ -363,7 +357,7 @@ def main(model, cost, config, tr_stream, dev_stream, use_bokeh=False):
 
 
     # Set up beam search and sampling computation graphs if necessary
-
+    # TODO: change the if here
     if config['hook_samples'] >= 1 or config['bleu_script'] is not None:
         logger.info("Building sampling model")
         sampling_representation = train_encoder.apply(
@@ -375,14 +369,14 @@ def main(model, cost, config, tr_stream, dev_stream, use_bokeh=False):
             bricks=[train_decoder.sequence_generator], name="outputs")(
                 ComputationGraph(generated[1]))  # generated[1] is next_outputs
 
-    # Add sampling
-    if config['hook_samples'] >= 1:
-        logger.info("Building sampler")
-        extensions.append(
-            Sampler(model=search_model, data_stream=tr_stream,
-                    hook_samples=config['hook_samples'],
-                    every_n_batches=config['sampling_freq'],
-                    src_vocab_size=config['src_vocab_size']))
+    # Add sampling -- TODO: sampling is broken for min-risk
+    #if config['hook_samples'] >= 1:
+    #    logger.info("Building sampler")
+    #    extensions.append(
+    #        Sampler(model=search_model, data_stream=tr_stream,
+    #                hook_samples=config['hook_samples'],
+    #                every_n_batches=config['sampling_freq'],
+    #                src_vocab_size=config['src_vocab_size']))
 
     # Add early stopping based on bleu
     if config.get('bleu_script', None) is not None:
@@ -417,27 +411,29 @@ def main(model, cost, config, tr_stream, dev_stream, use_bokeh=False):
 
     # TODO: reenable dropout and add L2 regularization as in the main config
 
-    # if there is dropout or random noise, we need to use the output of the modified graph
-#     if config['dropout'] < 1.0 or config['weight_noise_ff'] > 0.0:
-#         algorithm = GradientDescent(
-#             cost=cg.outputs[0], parameters=cg.parameters,
-#             step_rule=CompositeRule([StepClipping(config['step_clipping']),
-#                                      eval(config['step_rule'])()])
-#         )
-#     else:
-#         algorithm = GradientDescent(
-#             cost=cost, parameters=cg.parameters,
-#             step_rule=CompositeRule([StepClipping(config['step_clipping']),
-#                                      eval(config['step_rule'])()])
-#         )
+    # if there is l2_regularization, dropout or random noise, we need to use the output of the modified graph
+    if config['dropout'] < 1.0:
+        algorithm = GradientDescent(
+            cost=cg.outputs[0], parameters=cg.parameters,
+            step_rule=CompositeRule([StepClipping(config['step_clipping']),
+                                     eval(config['step_rule'])()]),
+            on_unused_sources='warn'
+        )
+    else:
+        algorithm = GradientDescent(
+            cost=cost, parameters=cg.parameters,
+            step_rule=CompositeRule([StepClipping(config['step_clipping']),
+                                     eval(config['step_rule'])()]),
+            on_unused_sources='warn'
+        )
 
-    algorithm = GradientDescent(
-        cost=cost, parameters=cg.parameters,
-        step_rule=CompositeRule([StepClipping(config['step_clipping']),
-                                 eval(config['step_rule'])()],
-                               ),
-        on_unused_sources='warn'
-    )
+    # algorithm = GradientDescent(
+    #     cost=cost, parameters=cg.parameters,
+    #     step_rule=CompositeRule([StepClipping(config['step_clipping']),
+    #                              eval(config['step_rule'])()],
+    #                            ),
+    #     on_unused_sources='warn'
+    # )
 
     # enrich the logged information
     extensions.append(

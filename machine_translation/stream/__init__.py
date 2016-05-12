@@ -36,15 +36,12 @@ class PaddingWithEOS(Padding):
         self.eos_idx = eos_idx
         super(PaddingWithEOS, self).__init__(**kwargs)
 
-    def get_data_from_batch(self, request=None):
-        if request is not None:
-            raise ValueError
-        data = list(next(self.child_epoch_iterator))
-        data_with_masks = []
+    def transform_batch(self, batch):
+        batch_with_masks = []
         for i, (source, source_data) in enumerate(
-                zip(self.data_stream.sources, data)):
+                zip(self.data_stream.sources, batch)):
             if source not in self.mask_sources:
-                data_with_masks.append(source_data)
+                batch_with_masks.append(source_data)
                 continue
 
             shapes = [numpy.asarray(sample).shape for sample in source_data]
@@ -60,14 +57,14 @@ class PaddingWithEOS(Padding):
                 dtype=dtype) * self.eos_idx[i]
             for i, sample in enumerate(source_data):
                 padded_data[i, :len(sample)] = sample
-            data_with_masks.append(padded_data)
+            batch_with_masks.append(padded_data)
 
             mask = numpy.zeros((len(source_data), max_sequence_length),
                                self.mask_dtype)
             for i, sequence_length in enumerate(lengths):
                 mask[i, :sequence_length] = 1
-            data_with_masks.append(mask)
-        return tuple(data_with_masks)
+            batch_with_masks.append(mask)
+        return tuple(batch_with_masks)
 
 
 class _oov_to_unk(object):
@@ -195,7 +192,6 @@ class MTSampleStreamTransformer:
     def __call__(self, data, **kwargs):
         source = data[0]
         reference = data[1]
-        # import ipdb; ipdb.set_trace()
 
         # each sample may be of different length
         samples = self.sample_func(numpy.array(source), self.num_samples)

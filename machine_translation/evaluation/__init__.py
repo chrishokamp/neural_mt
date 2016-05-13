@@ -146,7 +146,6 @@ def sentence_level_meteor(src, ref, samples, level='sentence', **kwargs):
         for _ in range(num_samples):
             out.write(' '.join([trg_ivocab[i] for i in ref]) + '\n')
     with open(trg_file.name, 'wb') as out:
-        # import ipdb; ipdb.set_trace()
         for s in samples:
             out.write(' '.join([trg_ivocab[i] if i in trg_ivocab else trg_ivocab[unk_idx] for i in s]) + '\n')
 

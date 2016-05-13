@@ -298,6 +298,45 @@ class CopySourceNTimes(Transformer):
         return tuple(batch_with_expanded_source)
 
 
+class ShuffleBatchTransformer(Transformer):
+    """
+    Take batches and shuffle them, allow user to provide the random seed
+
+    This transformer can be used to shuffle datastreams of an unknown or infinite size,
+    in other words data streams which are not indexable
+
+
+    Parameters
+    ----------
+    data_stream : :class:`AbstractDataStream` instance
+        The data stream to wrap
+    # TODO: what is the right way to pass a random seed
+    random_seed : int -- the number of samples that were generated for each source sequence
+
+    """
+    def __init__(self, data_stream, random_seed=None, **kwargs):
+        if data_stream.produces_examples:
+            raise ValueError('the wrapped data stream must produce batches of '
+                             'examples, not examples')
+
+        super(ShuffleBatchTransformer, self).__init__(
+            data_stream, produces_examples=False, **kwargs)
+
+
+    @property
+    def sources(self):
+        return self.data_stream.sources
+
+    # TODO: add user-configurable random seed
+    # TODO: add test for this function
+    def transform_batch(self, batch):
+        assert len(set([len(a) for a in batch])) == 1, 'the first dimension of all sources must be the same'
+
+        batch = [numpy.array(a) for a in zip(*numpy.random.permutation(zip(*batch)))]
+
+        return tuple(batch)
+
+
 def get_textfile_stream(source_file=None, src_vocab=None, src_vocab_size=30000,
                       unk_id=1):
     """Create a TextFile dataset from a single text file, and return a stream"""

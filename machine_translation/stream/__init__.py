@@ -17,6 +17,7 @@ def _ensure_special_tokens(vocab, bos_idx=0, eos_idx=0, unk_idx=1):
     for token in tokens_to_remove:
         vocab.pop(token)
     # put corresponding item
+    # note the BOS, EOS, and UNK tokens are hard-coded here
     vocab['<S>'] = bos_idx
     vocab['</S>'] = eos_idx
     vocab['<UNK>'] = unk_idx

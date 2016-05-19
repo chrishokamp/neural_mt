@@ -47,9 +47,8 @@ from machine_translation.checkpoint import CheckpointNMT, LoadNMT
 from machine_translation.model import BidirectionalEncoder, Decoder
 from machine_translation.sampling import BleuValidator, Sampler, SamplingBase, MeteorValidator
 from machine_translation.sample import SampleFunc
-from machine_translation.stream import (get_tr_stream, get_dev_stream,
-                                        _ensure_special_tokens, MTSampleStreamTransformer,
-                                        get_textfile_stream, _too_long, _length, PaddingWithEOS,
+from machine_translation.stream import (_ensure_special_tokens, MTSampleStreamTransformer,
+                                        get_textfile_stream, get_dev_stream, _too_long, _length, PaddingWithEOS,
                                         _oov_to_unk, CopySourceNTimes, FlattenSamples)
 from machine_translation.evaluation import sentence_level_bleu, sentence_level_meteor
 
@@ -95,7 +94,7 @@ exp_config = {
 
     # Optimization related ----------------------------------------------------
     # Batch size
-    'batch_size': 10,
+    'batch_size': 4,
     # This many batches will be read ahead and sorted
     'sort_k_batches': 1,
     # Optimization step rule
@@ -110,8 +109,8 @@ exp_config = {
     # dropout
     'dropout': 0.5,
     # l2_reg
-    'l2_regularization': True,
-    'l2_regularization_alpha': 0.0001,
+    # 'l2_regularization': True,
+    # 'l2_regularization_alpha': 0.001,
 
     # Maximum number of updates
     'finish_after': 10000,
@@ -150,7 +149,7 @@ exp_config = {
     'target_lang': 'de',
 
     # NEW PARAM FOR MIN RISK
-    'n_samples': 60,
+    'n_samples': 20,
 
     'meteor_directory': '/home/chris/programs/meteor-1.5',
     # 'brick_delimiter': '-'
@@ -158,12 +157,11 @@ exp_config = {
     # 'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BERTHA-TEST_wmt-multimodal_internal_data_dropout0.3_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_bleu_model_1455410311_BLEU30.38.npz',
     #'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BASELINE_WITH_REGULARIZATION0.0001_WEIGHT_SCALE_0.1_wmt-multimodal_internal_data_dropout0.5_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_bleu_model_1461853863_BLEU32.80.npz',
     'saved_parameters': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/BASELINE_METEOR_CHECKPOINT_WITH_REGULARIZATION0.0001_WEIGHT_SCALE_0.1_wmt-multimodal_internal_data_dropout0.5_ff_noiseFalse_search_model_en2es_vocab20000_emb300_rec800_batch15/best_model_1462312300_METEOR0.52.npz',
-    'saveto': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/MIN-RISK-DROPOUT0.5-l2reg0.0001-n_samples60-batch10',
-    'model_save_directory': 'MIN-RISK-DROPOUT0.5-l2reg0.0001-n_samples60-batch10',
+    'saveto': '/media/1tb_drive/multilingual-multimodal/flickr30k/train/processed/TEST-BROKEN-MIN-RISK-DROPOUT0.5-l2regNONE-n_samples50-batch20',
+    'model_save_directory': 'TEST-BROKEN-MIN-RISK-DROPOUT0.5-l2regNONE-n_samples50-batch20',
 }
 
 # TODO: load config from .yaml file -- this will let us be dynamic with the run names, which is a big advantage
-
 
 def get_sampling_model_and_input(exp_config):
     # Create Theano variables
@@ -231,8 +229,7 @@ training_stream = Filter(training_stream,
 
 # METEOR
 trg_ivocab = {v:k for k,v in trg_vocab.items()}
-import ipdb;ipdb.set_trace()
-# import ipdb; ipdb.set_trace()
+
 # WORKING: pass kwargs through the SampleStreamTransformer to the scoring function
 sampling_transformer = MTSampleStreamTransformer(sampling_func,
                                                  sentence_level_meteor,
@@ -427,13 +424,13 @@ def main(model, cost, config, tr_stream, dev_stream, use_bokeh=False):
             on_unused_sources='warn'
         )
 
-    # algorithm = GradientDescent(
-    #     cost=cost, parameters=cg.parameters,
-    #     step_rule=CompositeRule([StepClipping(config['step_clipping']),
-    #                              eval(config['step_rule'])()],
-    #                            ),
-    #     on_unused_sources='warn'
-    # )
+    algorithm = GradientDescent(
+        cost=cost, parameters=cg.parameters,
+        step_rule=CompositeRule([StepClipping(config['step_clipping']),
+                                 eval(config['step_rule'])()],
+                               ),
+        on_unused_sources='warn'
+    )
 
     # enrich the logged information
     extensions.append(
@@ -459,25 +456,6 @@ training_cost = create_model(train_encoder, train_decoder)
 # Set up training model
 logger.info("Building model")
 train_model = Model(training_cost)
-
-
-# test_iter = masked_stream.get_epoch_iterator()
-
-# source, source_mask, target, target_mask, samples, samples_mask, scores, scores_mask = test_iter.next()
-
-# train_model.inputs
-
-# test_func = train_model.get_theano_function()
-
-# scores = scores.astype('float32')
-# out = test_func(scores, samples_mask, source_mask, source, samples)
-
-
-# numpy.exp(out)
-# out[0].shape
-# out
-# scores
-# src_ivocab = {v:k for k,v in src_vocab.items()}
 
 dev_stream = get_dev_stream(**exp_config)
 

@@ -60,7 +60,6 @@ class SaveLoadUtils(object):
     def set_model_parameters(model, params):
         params_this = model.get_parameter_dict()
         missing = set(params_this.keys()) - set(params.keys())
-        import ipdb; ipdb.set_trace()
         for pname in params_this.keys():
             if pname in params:
                 val = params[pname]

@@ -1,11 +1,3 @@
-"""Encoder-Decoder with search for machine translation.
-
-Please see `prepare_data.py` for preprocessing configuration
-
-.. [BCB] Dzmitry Bahdanau, Kyunghyun Cho and Yoshua Bengio. Neural
-   Machine Translation by Jointly Learning to Align and Translate.
-"""
-
 from __future__ import print_function
 import argparse
 import logging
@@ -70,6 +62,29 @@ if __name__ == "__main__":
                                                             translated_output_file)
             logger.info('Translated: {}, output was written to: {}'.format(config_obj['test_set'],
                                                                            translated_output_file))
+
+        # If this is a subword system, and user asked for normalization, do it
+        if config_obj.get('normalize_subwords', False):
+            with codecs.open(translated_output_file, encoding='utf8') as output:
+                lines = output.readlines()
+            with codecs.open(translated_output_file, 'w', encoding='utf8') as output:
+                for line in lines:
+                    # sed "s/@@ //g"
+                    output.write(re.sub(r'@@ ', '', line))
+
+        # if user wants BOS and/or EOS tokens cut off, do it
+        if config_obj.get('remove_bos', False):
+            with codecs.open(translated_output_file, encoding='utf8') as output:
+                lines = output.readlines()
+            with codecs.open(translated_output_file, 'w', encoding='utf8') as output:
+                for line in lines:
+                    output.write(re.sub(r'^' + config_obj['bos_token'] + ' ', '', line))
+        if config_obj.get('remove_eos', False):
+            with codecs.open(translated_output_file, encoding='utf8') as output:
+                lines = output.readlines()
+            with codecs.open(translated_output_file, 'w', encoding='utf8') as output:
+                for line in lines:
+                    output.write(re.sub(config_obj['eos_token'], '', line))
 
         # BLEU
         # get gold refs

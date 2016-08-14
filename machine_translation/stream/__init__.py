@@ -32,6 +32,15 @@ def _length(sentence_pair):
 class PaddingWithEOS(Padding):
     """Padds a stream with given end of sequence idx."""
     def __init__(self, data_stream, eos_idx, **kwargs):
+
+        self.suffix_length = None
+        if 'suffix_length' in kwargs:
+            self.suffix_length = kwargs.pop('suffix_length')
+            try:
+                self.truncate_sources = set(kwargs.pop('truncate_sources'))
+            except KeyError as e:
+                raise(e) # you must specify which sources you are truncating with self.suffix_length
+
         kwargs['data_stream'] = data_stream
         # note that eos_idx is a list containing the eos_idx for each source that will be padded
         self.eos_idx = eos_idx
@@ -63,7 +72,10 @@ class PaddingWithEOS(Padding):
             mask = numpy.zeros((len(source_data), max_sequence_length),
                                self.mask_dtype)
             for i, sequence_length in enumerate(lengths):
-                mask[i, :sequence_length] = 1
+                if self.suffix_length is not None and source in self.truncate_sources:
+                    mask[i, :self.suffix_length] = 1.
+                else:
+                    mask[i, :sequence_length] = 1.
             batch_with_masks.append(mask)
         return tuple(batch_with_masks)
 
@@ -95,7 +107,7 @@ class _too_long(object):
 
 def get_tr_stream(src_vocab, trg_vocab, src_data, trg_data,
                   src_vocab_size=30000, trg_vocab_size=30000, unk_id=1,
-                  seq_len=50, batch_size=80, sort_k_batches=12, **kwargs):
+                  seq_len=50, batch_size=80, sort_k_batches=12, bos_token=None, **kwargs):
     """Prepares the training data stream."""
 
     # Load dictionaries and ensure special tokens exist
@@ -109,8 +121,14 @@ def get_tr_stream(src_vocab, trg_vocab, src_data, trg_data,
         bos_idx=0, eos_idx=trg_vocab_size - 1, unk_idx=unk_id)
 
     # Get text files from both source and target
-    src_dataset = TextFile([src_data], src_vocab, None)
-    trg_dataset = TextFile([trg_data], trg_vocab, None)
+    src_dataset = TextFile([src_data], src_vocab,
+                           bos_token=bos_token,
+                           eos_token='</S>',
+                           unk_token='<UNK>')
+    trg_dataset = TextFile([trg_data], trg_vocab,
+                           bos_token=bos_token,
+                           eos_token='</S>',
+                           unk_token='<UNK>')
 
     # Merge them to get a source, target pair
     stream = Merge([src_dataset.get_example_stream(),
@@ -128,6 +146,16 @@ def get_tr_stream(src_vocab, trg_vocab, src_data, trg_data,
                                  trg_vocab_size=trg_vocab_size,
                                  unk_id=unk_id))
 
+    # Now make a very big batch that we can shuffle
+    shuffle_batch_size = kwargs['shuffle_batch_size']
+    stream = Batch(stream,
+                   iteration_scheme=ConstantScheme(shuffle_batch_size)
+                   )
+
+    stream = ShuffleBatchTransformer(stream)
+
+    # unpack it again
+    stream = Unpack(stream)
     # Build a batched version of stream to read k batches ahead
     stream = Batch(stream,
                    iteration_scheme=ConstantScheme(
@@ -151,7 +179,7 @@ def get_tr_stream(src_vocab, trg_vocab, src_data, trg_data,
 
 
 def get_dev_stream(val_set=None, src_vocab=None, src_vocab_size=30000,
-                   unk_id=1, **kwargs):
+                   unk_id=1, bos_token=None, **kwargs):
     """Setup development set stream if necessary."""
     dev_stream = None
     if val_set is not None and src_vocab is not None:
@@ -159,7 +187,11 @@ def get_dev_stream(val_set=None, src_vocab=None, src_vocab_size=30000,
             src_vocab if isinstance(src_vocab, dict) else
             cPickle.load(open(src_vocab)),
             bos_idx=0, eos_idx=src_vocab_size - 1, unk_idx=unk_id)
-        dev_dataset = TextFile([val_set], src_vocab, None)
+        dev_dataset = TextFile([val_set], src_vocab,
+                               bos_token=bos_token,
+                               eos_token='</S>',
+                               unk_token='<UNK>')
+
         dev_stream = DataStream(dev_dataset)
     return dev_stream
 
@@ -242,7 +274,7 @@ class FlattenSamples(Transformer):
         for i, (source, source_batch) in enumerate(
                 zip(self.data_stream.sources, batch)):
 
-            if source == 'samples':
+            if source == 'samples' or source == 'seq_probs':
                 flattened_samples = []
                 for ins in source_batch:
                     for sample in ins:
@@ -286,8 +318,7 @@ class CopySourceNTimes(Transformer):
         for i, (source, source_batch) in enumerate(
                 zip(self.data_stream.sources, batch)):
             if source == 'source':
-#                 copy each source seqoyuence self.n_samples times, but keep the tensor 2d
-
+                # copy each source sequence self.n_samples times, but keep the tensor 2d
                 expanded_source = []
                 for ins in source_batch:
                     expanded_source.extend([ins for _ in range(self.n_samples)])
@@ -339,14 +370,17 @@ class ShuffleBatchTransformer(Transformer):
 
 
 def get_textfile_stream(source_file=None, src_vocab=None, src_vocab_size=30000,
-                      unk_id=1):
+                      unk_id=1, bos_token=None):
     """Create a TextFile dataset from a single text file, and return a stream"""
 
     src_vocab = _ensure_special_tokens(
         src_vocab if isinstance(src_vocab, dict) else
         cPickle.load(open(src_vocab)),
         bos_idx=0, eos_idx=src_vocab_size - 1, unk_idx=unk_id)
-    source_dataset = TextFile([source_file], src_vocab, bos_token=None)
+    source_dataset = TextFile([source_file], src_vocab,
+                              bos_token=bos_token,
+                              eos_token='</S>',
+                              unk_token='<UNK>')
     source_stream = source_dataset.get_example_stream()
     return source_stream
 

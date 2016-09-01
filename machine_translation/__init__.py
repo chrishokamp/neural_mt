@@ -77,6 +77,10 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     cg = ComputationGraph(cost)
 
     # GRAPH TRANSFORMATIONS FOR BETTER TRAINING
+
+    # TODO: allow user to remove some params from the graph, for example if embeddings should be kept static
+
+
     if config.get('l2_regularization', False) is True:
         l2_reg_alpha = config['l2_regularization_alpha']
         logger.info('Applying l2 regularization with alpha={}'.format(l2_reg_alpha))
@@ -99,20 +103,6 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
                           if x.name == 'maxout_apply_output']
         cg = apply_dropout(cg, dropout_inputs, config['dropout'])
 
-    # Apply weight noise for regularization
-    if config['weight_noise_ff'] > 0.0:
-        logger.info('Applying weight noise to ff layers')
-        enc_params = Selector(encoder.lookup).get_parameters().values()
-        enc_params += Selector(encoder.fwd_fork).get_parameters().values()
-        enc_params += Selector(encoder.back_fork).get_parameters().values()
-        dec_params = Selector(
-            decoder.sequence_generator.readout).get_parameters().values()
-        dec_params += Selector(
-            decoder.sequence_generator.fork).get_parameters().values()
-        dec_params += Selector(decoder.transition.initial_transformer).get_parameters().values()
-        cg = apply_noise(cg, enc_params+dec_params, config['weight_noise_ff'])
-
-    # TODO: weight noise for recurrent params isn't currently implemented -- see config['weight_noise_rec']
     # Print shapes
     shapes = [param.get_value().shape for param in cg.parameters]
     logger.info("Parameter shapes: ")
@@ -303,6 +293,7 @@ class NMTPredictor:
         self.unk_idx = exp_config['unk_id']
 
         # Get vocabularies and inverse indices
+        # Note: _ensure_special_tokens will _overwrite_ anything at bos_idx, src_idx, and unk_idx
         self.src_vocab = _ensure_special_tokens(
             pickle.load(open(exp_config['src_vocab'])), bos_idx=0,
             eos_idx=self.src_eos_idx, unk_idx=self.unk_idx)

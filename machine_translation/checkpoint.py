@@ -35,11 +35,13 @@ class SaveLoadUtils(object):
         return os.path.join(self.folder, 'log')
 
     @staticmethod
-    def load_parameter_values(path, brick_delimiter=None):
+    def load_parameter_values(path, brick_delimiter='|'):
         with closing(numpy.load(path)) as source:
             param_values = {}
             for name, value in source.items():
                 if name != 'pkl':
+                    brick_delimiter = '|'
+                    #import ipdb;ipdb.set_trace()
                     # Chris: BRICK_DELIMITER is defined in blocks.serialization
                     if brick_delimiter is None:
                         name_ = name.replace(BRICK_DELIMITER, '/')
@@ -60,6 +62,7 @@ class SaveLoadUtils(object):
     def set_model_parameters(model, params):
         params_this = model.get_parameter_dict()
         missing = set(params_this.keys()) - set(params.keys())
+        import ipdb;ipdb.set_trace()
         for pname in params_this.keys():
             if pname in params:
                 val = params[pname]

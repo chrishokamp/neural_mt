@@ -11,7 +11,9 @@ import pickle
 import codecs
 import re
 import time
+import json
 from subprocess import Popen, PIPE, check_output
+from collections import defaultdict
 
 from blocks.algorithms import (GradientDescent, StepClipping,
                                CompositeRule, Adam, AdaDelta)
@@ -27,7 +29,7 @@ from blocks.roles import WEIGHT
 from blocks.search import BeamSearch
 from blocks_extras.extensions.plot import Plot
 
-from machine_translation.checkpoint import CheckpointNMT, LoadNMT
+from machine_translation.checkpoint import CheckpointNMT, LoadNMT, RunExternalValidation
 from machine_translation.model import BidirectionalEncoder, Decoder
 from machine_translation.sampling import BleuValidator, Sampler, SamplingBase, MeteorValidator
 from machine_translation.stream import (get_tr_stream, get_dev_stream,
@@ -40,6 +42,7 @@ except ImportError:
     BOKEH_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 def main(config, tr_stream, dev_stream, use_bokeh=False):
@@ -131,13 +134,7 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
 
     # Set extensions
     logger.info("Initializing extensions")
-    extensions = [
-        FinishAfter(after_n_batches=config['finish_after']),
-        TrainingDataMonitoring([cost], after_batch=True),
-        Printing(after_batch=True),
-        CheckpointNMT(config['saveto'],
-                      every_n_batches=config['save_freq'])
-    ]
+    extensions = []
 
     # Set up beam search and sampling computation graphs if necessary
     if config['hook_samples'] >= 1 or config['bleu_script'] is not None:
@@ -160,27 +157,28 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
                     every_n_batches=config['sampling_freq'],
                     src_vocab_size=config['src_vocab_size']))
 
+    # WORKING: remove these validators in favor of Async
     # Add early stopping based on bleu
-    if config.get('bleu_script', None) is not None:
-        logger.info("Building bleu validator")
-        extensions.append(
-            BleuValidator(sampling_input, samples=samples, config=config,
-                          model=search_model, data_stream=dev_stream,
-                          normalize=config['normalized_bleu'],
-                          every_n_batches=config['bleu_val_freq']))
+    # if config.get('bleu_script', None) is not None:
+    #     logger.info("Building bleu validator")
+    #     extensions.append(
+    #         BleuValidator(sampling_input, samples=samples, config=config,
+    #                       model=search_model, data_stream=dev_stream,
+    #                       normalize=config['normalized_bleu'],
+    #                       every_n_batches=config['bleu_val_freq']))
 
     # Add early stopping based on Meteor
-    if config.get('meteor_directory', None) is not None:
-        logger.info("Building meteor validator")
-        extensions.append(
-            MeteorValidator(sampling_input, samples=samples, config=config,
-                          model=search_model, data_stream=dev_stream,
-                          normalize=config['normalized_bleu'],
-                          every_n_batches=config['bleu_val_freq']))
+    # if config.get('meteor_directory', None) is not None:
+    #     logger.info("Building meteor validator")
+    #     extensions.append(
+    #         MeteorValidator(sampling_input, samples=samples, config=config,
+    #                       model=search_model, data_stream=dev_stream,
+    #                       normalize=config['normalized_bleu'],
+    #                       every_n_batches=config['bleu_val_freq']))
 
     # Reload model if necessary
-    if config['reload']:
-        extensions.append(LoadNMT(config['saveto']))
+    # if config['reload']:
+    #     extensions.append(LoadNMT(config['saveto']))
 
     # Plot cost in bokeh if necessary
     if use_bokeh and BOKEH_AVAILABLE:
@@ -206,8 +204,19 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
         )
 
     # enrich the logged information
+    # WORKING: add new thread evaluator -- remove blocking evaluator
+    extensions.extend(
+        [Timing(every_n_batches=100),
+        FinishAfter(after_n_batches=config['finish_after']),
+        TrainingDataMonitoring([cost], after_batch=True),
+        Printing(after_batch=True),
+        CheckpointNMT(config['saveto'],
+                      every_n_batches=config['save_freq'])]
+    )
+
+    import ipdb;ipdb.set_trace()
     extensions.append(
-        Timing(every_n_batches=100)
+        RunExternalValidation(config=config, every_n_batches=200)
     )
 
     # Initialize main loop
@@ -223,6 +232,7 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     main_loop.run()
 
 
+# TODO: use this function to set up training as well -- see IMT repo
 def load_params_and_get_beam_search(exp_config):
 
     encoder = BidirectionalEncoder(
@@ -252,7 +262,7 @@ def load_params_and_get_beam_search(exp_config):
     model = Model(generated)
     logger.info("Loading parameters from model: {}".format(exp_config['saved_parameters']))
 
-    # load the parameter values from an .npz file
+    # load the parameter values from an .npz file if the `saved_parameters` field is present in the config
     param_values = LoadNMT.load_parameter_values(exp_config['saved_parameters'], brick_delimiter=exp_config.get('brick_delimiter', None))
     LoadNMT.set_model_parameters(model, param_values)
 
@@ -450,8 +460,26 @@ def run(mode, config_obj, bokeh):
     elif mode == 'predict':
         predictor = NMTPredictor(config_obj)
         predictor.predict_file(config_obj['test_set'], config_obj.get('translated_output_file', None))
+
+    # TODO: let user configure which evaluation metrics to use
     elif mode == 'evaluate':
         logger.info("Started Evaluation: ")
+        model_name = config_obj.get('model_name', 'default_model')
+        # TODO: we need a way to keep track of the evaluations from all models, but they are running async
+        evaluation_report_path = os.path.join(config_obj['saveto'], model_name + '.json')
+
+
+        # load existing evaluation info if this model has already been evaluated
+        # if os.path.isfile(evaluation_report_path):
+        #     with codecs.open(evaluation_report_path, encoding='utf8') as existing_eval:
+        #         import ipdb;ipdb.set_trace()
+        #         print('existing eval: {}'.format(existing_eval.read()))
+        #         evaluation_report = json.loads(existing_eval.read())
+        # else:
+        #     evaluation_report = {}
+
+        evaluation_report = {}
+
         val_start_time = time.time()
 
         # translate if necessary, write output file, call external evaluation tools and show output
@@ -504,32 +532,39 @@ def run(mode, config_obj, bokeh):
                 print(l.encode('utf8'), file= mb_subprocess.stdin)
                 mb_subprocess.stdin.flush()
 
-                # send end of file, read output.
-                mb_subprocess.stdin.close()
-                stdout = mb_subprocess.stdout.readline()
-                logger.info(stdout)
-                out_parse = re.match(r'BLEU = [-.0-9]+', stdout)
-                logger.info("Validation Took: {} minutes".format(
-                    float(time.time() - val_start_time) / 60.))
-                assert out_parse is not None
+            # send end of file, read output.
+            mb_subprocess.stdin.close()
+            stdout = mb_subprocess.stdout.readline()
+            logger.info(stdout)
+            out_parse = re.match(r'BLEU = [-.0-9]+', stdout)
+            logger.info("Validation Took: {} minutes".format(float(time.time() - val_start_time) / 60.))
+            assert out_parse is not None
 
-                # extract the score
-                bleu_score = float(out_parse.group()[6:])
-                logger.info('BLEU SCORE: {}'.format(bleu_score))
-                mb_subprocess.terminate()
+            # extract the score
+            bleu_score = float(out_parse.group()[6:])
+            logger.info('BLEU SCORE: {}'.format(bleu_score))
+            mb_subprocess.terminate()
+            evaluation_report[model_name] = {'bleu': bleu_score}
 
-                # Meteor
-                meteor_directory = config_obj.get('meteor_directory', None)
-                if meteor_directory is not None:
-                    target_language = config_obj.get('target_lang', 'de')
-                    # java -Xmx2G -jar meteor-*.jar test reference - l en - norm
-                    # Note: not using the `-norm` parameter with METEOR since the references are already tokenized
-                    meteor_cmd = ['java', '-Xmx4G', '-jar', os.path.join(meteor_directory, 'meteor-1.5.jar'),
-                                  translated_output_file, config_obj['test_gold_refs'], '-l', target_language, '-norm']
+        # Meteor
+        meteor_directory = config_obj.get('meteor_directory', None)
+        if meteor_directory is not None:
+            target_language = config_obj.get('target_lang', 'de')
+            # java -Xmx2G -jar meteor-*.jar test reference - l en - norm
+            # Note: not using the `-norm` parameter with METEOR since the references are already tokenized
+            meteor_cmd = ['java', '-Xmx4G', '-jar', os.path.join(meteor_directory, 'meteor-1.5.jar'),
+                          translated_output_file, config_obj['test_gold_refs'], '-l', target_language, '-norm']
 
-                    meteor_output = check_output(meteor_cmd)
-                    meteor_score = float(meteor_output.strip().split('\n')[-1].split()[-1])
-                    logger.info('METEOR SCORE: {}'.format(meteor_score))
+            meteor_output = check_output(meteor_cmd)
+            meteor_score = float(meteor_output.strip().split('\n')[-1].split()[-1])
+            logger.info('METEOR SCORE: {}'.format(meteor_score))
+            evaluation_report[model_name] = {'meteor': meteor_score}
+
+        # load existing evaluation info if this model has already been evaluated
+        with codecs.open(evaluation_report_path, 'w', encoding='utf8') as eval_out:
+            eval_out.write(json.dumps(evaluation_report, indent=2))
+        logger.info('Wrote evaluation report to: {}'.format(evaluation_report_path))
+
 
 
     elif mode == 'server':

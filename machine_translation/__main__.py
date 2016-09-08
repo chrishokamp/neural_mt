@@ -23,9 +23,6 @@ parser.add_argument("--bokeh",  default=False, action="store_true",
 
 
 
-
-
-
 # WORKING: move this to a separate method so we can call different modes from different threads
 if __name__ == "__main__":
     # Get configurations for model

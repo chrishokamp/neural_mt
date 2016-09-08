@@ -147,7 +147,7 @@ def get_tr_stream(src_vocab, trg_vocab, src_data, trg_data,
                                  unk_id=unk_id))
 
     # Now make a very big batch that we can shuffle
-    shuffle_batch_size = kwargs['shuffle_batch_size']
+    shuffle_batch_size = kwargs.get('shuffle_batch_size', 1000)
     stream = Batch(stream,
                    iteration_scheme=ConstantScheme(shuffle_batch_size)
                    )

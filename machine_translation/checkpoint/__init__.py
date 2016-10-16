@@ -172,10 +172,21 @@ class RunExternalValidation(SimpleExtension):
             os.makedirs(self.temp_evaluation_dir)
 
         self.config = config
+        self.which_gpu = str(config.get('dev_gpu', 1))
+
+        # this is used to parse the evaluation result files
+        self.eval_result_delimiter = ' '
+        # this holds the names of the results we've already processed
+        self.processed_results = set()
 
         # this maintains the state for the most recently validated model
         # this field is a tuple: (<iteration_count>, model_path)
         self.most_recent_validation = None
+
+        self.metrics = config.get('evaluation_metrics', ['bleu'])
+        self.results = {}
+        for m in self.metrics:
+            self.results[m] = []
 
         self.savedir = os.path.join(saveto, 'validation_models')
         # TODO: manually set which GPU this is going to run on
@@ -193,16 +204,15 @@ class RunExternalValidation(SimpleExtension):
                 else:
                     logger.info('Not running validation because there is no new model to evaluate')
 
-            # TODO:
-            # self.dump(self.main_loop)
+            # check if any validations finished since the last time we ran this validator
+            # since validations are asychronous, a later validation may finish before an earlier one
+            self.check_for_validation_results()
+
         except Exception:
             raise
         finally:
             pass
-            # already_saved_to = self.main_loop.log.current_row.get(SAVED_TO, ())
-            # self.main_loop.log.current_row[SAVED_TO] = (already_saved_to +
-            #                                             (self.path_to_folder +
-            #                                              'params.npz',))
+
 
     def build_evaluation_command(self, config_filename):
         """Note that machine_translation must be available as a module for this command to work"""
@@ -215,8 +225,6 @@ class RunExternalValidation(SimpleExtension):
         logger.info('RUNNING VALIDATION')
 
         # TODO: how to set environment CUDA_VISIBLE_DEVICES for the thread?
-        # TODO: we also need to check if there is new information in os.path(config_obj['saveto'], 'evaluation.json')
-        # TODO: if there is a new validation which outperforms others, we should move it/rename it, etc...
 
         temp_model_prefix = 'evaluation_checkpoint_{}'.format(last_checkpoint[0])
 
@@ -230,7 +238,7 @@ class RunExternalValidation(SimpleExtension):
         eval_config = copy.copy(self.config)
         eval_config['saved_parameters'] = temp_model_path
 
-        # make the dev set look like the test set so that we can run in evaluation mode
+        # make the dev set look like the test set in the dynamic config so that we can run in evaluation mode
         eval_config['test_set'] = eval_config['val_set']
         eval_config['test_gold_refs'] = eval_config['val_set_grndtruth']
         eval_config['translated_output_file'] = os.path.join(self.temp_evaluation_dir, temp_model_prefix + '.out')
@@ -244,18 +252,41 @@ class RunExternalValidation(SimpleExtension):
 
         evaluation_command = self.build_evaluation_command(eval_config_filename)
 
-        p = subprocess.Popen(evaluation_command)
-        # p = subprocess.Popen(evaluation_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        new_env = os.environ.copy()
+        new_env["CUDA_VISIBLE_DEVICES"] = self.which_gpu
+        p = subprocess.Popen(evaluation_command, env=new_env)
         logger.info('Started validation in subprocess with command: {}'.format(' '.join(evaluation_command)))
-
-
-
-        # delete the model if it's not better
-
-        # if it is better, save it according to its metric
 
         # indicate that this validation has been run for this iteration
         self.most_recent_validation = last_checkpoint
+
+
+    def check_for_validation_results(self):
+        evaluation_dir = os.path.join(self.temp_evaluation_dir, 'evaluation_reports')
+
+        # look in the validation dir, read all results by name -- try to parse into our object which stores results per metric
+        # TODO: also delete old models whose perf wasn't good so that disk usage doesn't go crazy
+        # TODO: if there is a new validation which outperforms others, we should move it/rename it, etc...
+        # if it is better, save it in a validation dir according to its metric
+        if os.path.isdir(evaluation_dir):
+            eval_files = [f for f in os.listdir(evaluation_dir) if os.path.isfile(os.path.join(evaluation_dir, f))]
+
+            new_evaluations = [f for f in eval_files if f not in self.processed_results]
+            for f in new_evaluations:
+                self.processed_results.update([f])
+                metric, score, name = f.split(self.eval_result_delimiter)
+                self.results[metric].append((float(score), name))
+
+            # the metrics sorted by iter count will give us the most recent result, add this to main loop for live plot
+            for m in self.metrics:
+                metric_results = self.results[m]
+                if len(metric_results) > 0:
+                    # sort by name -- the iter number is included in the name
+                    metric_results = [r for r in sorted(metric_results, key=lambda x: x[1], reverse=True)]
+                    # log the score of the most recent available validation result for this metric
+                    self.main_loop.log.current_row['validation_set_{}_score'.format(m)] = metric_results[0][0]
+                    # self.main_loop.log.current_row['validation_set_{}_score'.format(m)] = 20.0
+
 
     def copy_model(self, model_path, copy_path, new_name=None):
         """copy a model to a new path, optionally give it a new name"""

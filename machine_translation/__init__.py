@@ -158,6 +158,7 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
                     src_vocab_size=config['src_vocab_size']))
 
     # WORKING: remove these validators in favor of Async
+    # TODO: implement burn-in in the validation extension (don't fire until we're past the burn-in iteration)
     # Add early stopping based on bleu
     # if config.get('bleu_script', None) is not None:
     #     logger.info("Building bleu validator")
@@ -180,12 +181,6 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     # if config['reload']:
     #     extensions.append(LoadNMT(config['saveto']))
 
-    # Plot cost in bokeh if necessary
-    if use_bokeh and BOKEH_AVAILABLE:
-        extensions.append(
-            Plot(config['model_save_directory'], channels=[['decoder_cost_cost'], ['validation_set_bleu_score'],
-                                                           ['validation_set_meteor_score']],
-                 every_n_batches=10))
 
     # Set up training algorithm
     logger.info("Initializing training algorithm")
@@ -204,7 +199,6 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
         )
 
     # enrich the logged information
-    # WORKING: add new thread evaluator -- remove blocking evaluator
     extensions.extend(
         [Timing(every_n_batches=100),
         FinishAfter(after_n_batches=config['finish_after']),
@@ -214,10 +208,16 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
                       every_n_batches=config['save_freq'])]
     )
 
-    import ipdb;ipdb.set_trace()
     extensions.append(
-        RunExternalValidation(config=config, every_n_batches=200)
+        RunExternalValidation(config=config, every_n_batches=config['bleu_val_freq'])
     )
+
+    # Plot cost in bokeh if necessary
+    if use_bokeh and BOKEH_AVAILABLE:
+        extensions.append(
+            Plot(config['model_save_directory'], channels=[['decoder_cost_cost'], ['validation_set_bleu_score'],
+                                                           ['validation_set_meteor_score']],
+                 every_n_batches=1))
 
     # Initialize main loop
     logger.info("Initializing main loop")
@@ -466,21 +466,15 @@ def run(mode, config_obj, bokeh):
         logger.info("Started Evaluation: ")
         model_name = config_obj.get('model_name', 'default_model')
         # TODO: we need a way to keep track of the evaluations from all models, but they are running async
-        evaluation_report_path = os.path.join(config_obj['saveto'], model_name + '.json')
-
+        evaluation_report_path = os.path.join(config_obj['saveto'], 'evaluation_reports')
 
         # load existing evaluation info if this model has already been evaluated
-        # if os.path.isfile(evaluation_report_path):
-        #     with codecs.open(evaluation_report_path, encoding='utf8') as existing_eval:
-        #         import ipdb;ipdb.set_trace()
-        #         print('existing eval: {}'.format(existing_eval.read()))
-        #         evaluation_report = json.loads(existing_eval.read())
-        # else:
-        #     evaluation_report = {}
-
-        evaluation_report = {}
+        if not os.path.isdir(evaluation_report_path):
+            os.makedirs(evaluation_report_path)
 
         val_start_time = time.time()
+
+        evaluation_report = []
 
         # translate if necessary, write output file, call external evaluation tools and show output
         translated_output_file = config_obj.get('translated_output_file', None)
@@ -544,7 +538,7 @@ def run(mode, config_obj, bokeh):
             bleu_score = float(out_parse.group()[6:])
             logger.info('BLEU SCORE: {}'.format(bleu_score))
             mb_subprocess.terminate()
-            evaluation_report[model_name] = {'bleu': bleu_score}
+            evaluation_report.append(u'{} {} {}'.format('bleu', bleu_score, model_name))
 
         # Meteor
         meteor_directory = config_obj.get('meteor_directory', None)
@@ -558,14 +552,12 @@ def run(mode, config_obj, bokeh):
             meteor_output = check_output(meteor_cmd)
             meteor_score = float(meteor_output.strip().split('\n')[-1].split()[-1])
             logger.info('METEOR SCORE: {}'.format(meteor_score))
-            evaluation_report[model_name] = {'meteor': meteor_score}
+            evaluation_report.append(u'{} {} {}'.format('meteor', bleu_score, model_name))
 
-        # load existing evaluation info if this model has already been evaluated
-        with codecs.open(evaluation_report_path, 'w', encoding='utf8') as eval_out:
-            eval_out.write(json.dumps(evaluation_report, indent=2))
-        logger.info('Wrote evaluation report to: {}'.format(evaluation_report_path))
-
-
+        # touch a file for each row in evaluation_report, the file name is the result
+        for l in evaluation_report:
+            open(os.path.join(evaluation_report_path, l), 'w').close()
+        logger.info('Wrote evaluation report files to: {}'.format(evaluation_report_path))
 
     elif mode == 'server':
 
@@ -576,4 +568,7 @@ def run(mode, config_obj, bokeh):
         # start restful server and log its port
         predictor = NMTPredictor(config_obj)
         run_nmt_server(predictor)
+
+    else:
+        print('ERROR: mode unknown: {}'.format(mode))
 

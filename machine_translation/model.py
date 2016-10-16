@@ -240,6 +240,8 @@ class Decoder(Initializable):
 
         return (cost * target_sentence_mask).sum() / \
             target_sentence_mask.shape[1]
+            # WORKING: try word-level cost
+            # target_sentence_mask.sum()
 
     # Note: this requires the decoder to be using sequence_generator which implements expected cost
     @application(inputs=['representation', 'source_sentence_mask',

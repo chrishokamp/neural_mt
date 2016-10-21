@@ -77,7 +77,6 @@ Prediction with a large model took ~4sec per sentence on a 2012 machine with 8 o
 
 - the default configuration requires too much memory for a 4GB GPU -- the
   params that you need to change are: 
-```
     # Sequences longer than this will be discarded
     config['seq_len'] = 50
 
@@ -89,7 +88,6 @@ Prediction with a large model took ~4sec per sentence on a 2012 machine with 8 o
     config['enc_embed'] = 620
     config['dec_embed'] = 620
 
-```
 
 For example, a working configuration is:
 
@@ -115,6 +113,45 @@ For example, a working configuration is:
 you want to use the parameters of the trained NMT model to initialize another model, such as a Quality Estimation model, 
 and you need the vocabularies to match. See `machine_translation/prepare_data.py` for the available dataset preparation
   commands.
+  
+  
+**Preparing Datasets**
+
+Several utilities are available for dataset preparation. The high-level process is:
+
+(1) get parallel datasets
+(2) concatenate all your data together (excluding dev and test)
+(3) shuffle -- a simple shuffling script is provided in `scripts/jointly_shuffle.py`
+```
+scripts/jointly_shuffle.py -f <src-file> <tgt-file>
+```
+(4) tokenize train, dev and test sets -- the moses tokenizer is fast and reliable
+```
+perl tokenizer/tokenizer.perl -l en -no-escape 1 -threads 20 < all_data.en.shuf > all_data.en.shuf.tok
+```
+(5) create subword encoding codes from the tokenized training data -- if languages use the same orthography, 
+it's probably best to use both source and target to create a single BPE code index.
+
+Count the unique tokens in each dataset, and set the vocabulary size for each languge to be at least the 
+number of unique tokens.
+```
+# this method will be very slow if your data is large -- write a python script!
+cat all_data.en.shuf.tok.bpe | tr " " "\n" | sort | uniq | wc -l
+```
+
+```
+# learn the BPE encoding
+python learn_bpe.py -s 80000 < /media/1tb_drive/parallel_data/en-pt/en_and_pt_data_for_bpe.shuf.tok > /media/1tb_drive/parallel_data/en-pt/all_text_both_EN_and_PT.80000.bpe.codes
+# apply BPE encoding to data
+
+
+```
+(5a) (optional) at this point, you may want to pre-train word vectors using word2vec, fastText, etc...
+
+(6) create source and target vocabularies
+```
+python preprocess.py -d /media/1tb_drive/parallel_data/en-fr/phrasal_acl/vocab.bpe.66000.en-fr.en.pkl -v 66000 /media/1tb_drive/parallel_data/en-fr/phrasal_acl/en.bpe
+```
 
 **Commands for monitoring your experiments**
 

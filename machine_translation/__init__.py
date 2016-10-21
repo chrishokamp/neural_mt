@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def main(config, tr_stream, dev_stream, use_bokeh=False):
+def main(config, tr_stream, dev_stream, use_bokeh=False, src_vocab=None, trg_vocab=None):
 
     # Create Theano variables
     logger.info('Creating theano variables')
@@ -127,6 +127,35 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     logger.info("Building model")
     training_model = Model(cost)
 
+
+    # allow user to externally initialize some params
+    model_params = training_model.get_parameter_dict()
+    if config.get('external_embeddings', None) is not None:
+        for key in config['external_embeddings']:
+            path_to_params = config['external_embeddings'][key]
+            logger.info('Replacing {} parameters with external params at: {}'.format(key, path_to_params))
+            external_params = numpy.load(path_to_params)
+            len_external_idx = external_params.shape[0]
+            print(external_params.shape)
+            # Working: look in the dictionary and overwrite the correct rows
+            existing_params = model_params[key].get_value()
+            if key == '/bidirectionalencoder/embeddings.W':
+                vocab = src_vocab
+            elif key == '/decoder/sequencegenerator/readout/lookupfeedbackwmt15/lookuptable.W':
+                vocab = trg_vocab
+            else:
+                raise KeyError('Unknown embedding parameter key: {}'.format(key))
+            for k,i in vocab.items():
+                if i < len_external_idx:
+                    existing_params[i] = external_params[i]
+
+            # model_params_shape = model_params[key].get_value().shape
+            # assert model_params[key].get_value().shape == external_params.shape, ("Parameter dims must not change,"
+            #                                                                       "shapes {} and {} do not match".
+            #                                                                       format(model_params_shape,
+            #                                                                              external_params.shape))
+            model_params[key].set_value(existing_params)
+
     # create the training directory, and copy this config there if directory doesn't exist
     if not os.path.isdir(config['saveto']):
         os.makedirs(config['saveto'])
@@ -178,8 +207,8 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
     #                       every_n_batches=config['bleu_val_freq']))
 
     # Reload model if necessary
-    # if config['reload']:
-    #     extensions.append(LoadNMT(config['saveto']))
+    if config['reload']:
+        extensions.append(LoadNMT(config['saveto']))
 
 
     # Set up training algorithm
@@ -208,6 +237,7 @@ def main(config, tr_stream, dev_stream, use_bokeh=False):
                       every_n_batches=config['save_freq'])]
     )
 
+    # External non-blocking validation
     extensions.append(
         RunExternalValidation(config=config, every_n_batches=config['bleu_val_freq'])
     )
@@ -455,8 +485,9 @@ class NMTPredictor:
 def run(mode, config_obj, bokeh):
     if mode == 'train':
         # Get data streams and call main
-        main(config_obj, get_tr_stream(**config_obj),
-             get_dev_stream(**config_obj), bokeh)
+        train_stream, src_vocab, trg_vocab = get_tr_stream(**config_obj)
+        dev_stream = get_dev_stream(**config_obj)
+        main(config_obj, train_stream, dev_stream, bokeh, src_vocab=src_vocab, trg_vocab=trg_vocab)
     elif mode == 'predict':
         predictor = NMTPredictor(config_obj)
         predictor.predict_file(config_obj['test_set'], config_obj.get('translated_output_file', None))

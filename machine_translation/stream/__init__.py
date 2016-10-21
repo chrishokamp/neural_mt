@@ -175,7 +175,7 @@ def get_tr_stream(src_vocab, trg_vocab, src_data, trg_data,
     masked_stream = PaddingWithEOS(
         stream, [src_vocab_size - 1, trg_vocab_size - 1])
 
-    return masked_stream
+    return masked_stream, src_vocab, trg_vocab
 
 
 def get_dev_stream(val_set=None, src_vocab=None, src_vocab_size=30000,

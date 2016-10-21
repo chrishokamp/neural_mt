@@ -2,7 +2,7 @@
 import logging
 import argparse
 
-from neural_mt.machine_translation.preprocessing_utils import shuffle_parallel
+from machine_translation.preprocessing_utils import shuffle_parallel
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)

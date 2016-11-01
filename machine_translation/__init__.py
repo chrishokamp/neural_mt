@@ -546,8 +546,15 @@ def run(mode, config_obj, bokeh):
 
         # BLEU
         # get gold refs
-        multibleu_cmd = ['perl', config_obj['bleu_script'],
-                         config_obj['test_gold_refs'], '<']
+        lowercase = config_obj.get('lowercase_bleu', False)
+        if lowercase:
+            logger.info('BLEU will be evaluated in lowercase mode')
+            multibleu_cmd = ['perl', config_obj['bleu_script'], '-lc',
+                             config_obj['test_gold_refs'], '<']
+        else: 
+            logger.info('BLEU will be evaluated in case-sensitive mode')
+            multibleu_cmd = ['perl', config_obj['bleu_script'],
+                             config_obj['test_gold_refs'], '<']
 
         mb_subprocess = Popen(multibleu_cmd, stdin=PIPE, stdout=PIPE)
 

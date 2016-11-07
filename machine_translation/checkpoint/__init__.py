@@ -1,9 +1,5 @@
 """Utils for checkpointing and early stopping on NMT models"""
 
-# WORKING: extension which looks in a directory for a specific file containing validation checks, and checks i
-# WORKING: anything has changed from the last time it looks
-# WORKING: if something has changed, put it in the log so it can be plotted, etc...
-
 import logging
 import numpy
 import os
@@ -156,11 +152,9 @@ class RunExternalValidation(SimpleExtension):
 
     """
 
-    # TODO: hardcode or specify the command to run in a different thread (use subprocess syntax)
     # TODO: another extension which can write to main loop when new bests are found -- this is useful for live plotting
     # TODO: mkdir and copy params when models are good
     # TODO: each model has a unique name while it's being validated
-    # TODO: only start validation at a reasonable time
     def __init__(self, config, **kwargs):
 
         # Create saving directory if it does not exist

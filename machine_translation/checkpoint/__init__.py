@@ -207,12 +207,10 @@ class RunExternalValidation(SimpleExtension):
         finally:
             pass
 
-
     def build_evaluation_command(self, config_filename):
         """Note that machine_translation must be available as a module for this command to work"""
         command = ['python', '-m', 'machine_translation', '-m', 'evaluate', config_filename]
         return command
-
 
     def run_validation(self, last_checkpoint):
         """Run the validation in another thread on another GPU"""
@@ -237,6 +235,7 @@ class RunExternalValidation(SimpleExtension):
         eval_config['test_gold_refs'] = eval_config['val_set_grndtruth']
         eval_config['translated_output_file'] = os.path.join(self.temp_evaluation_dir, temp_model_prefix + '.out')
         eval_config['saveto'] = self.temp_evaluation_dir
+        eval_config['model_save_directory'] = self.temp_evaluation_dir
         eval_config['model_name'] = temp_model_prefix
 
         eval_config_filename = os.path.join(self.temp_evaluation_dir, temp_model_prefix + '.config.yaml')
@@ -253,7 +252,6 @@ class RunExternalValidation(SimpleExtension):
 
         # indicate that this validation has been run for this iteration
         self.most_recent_validation = last_checkpoint
-
 
     def check_for_validation_results(self):
         evaluation_dir = os.path.join(self.temp_evaluation_dir, 'evaluation_reports')

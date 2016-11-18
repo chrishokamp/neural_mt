@@ -154,7 +154,7 @@ class RunExternalValidation(SimpleExtension):
 
     # TODO: another extension which can write to main loop when new bests are found -- this is useful for live plotting
     # TODO: mkdir and copy params when models are good
-    # TODO: each model has a unique name while it's being validated
+    # TODO: manually set which GPU this is going to run on depending on the current state of the machine
     def __init__(self, config, **kwargs):
 
         # Create saving directory if it does not exist
@@ -183,7 +183,6 @@ class RunExternalValidation(SimpleExtension):
             self.results[m] = []
 
         self.savedir = os.path.join(saveto, 'validation_models')
-        # TODO: manually set which GPU this is going to run on
 
         super(RunExternalValidation, self).__init__(**kwargs)
 
@@ -228,6 +227,7 @@ class RunExternalValidation(SimpleExtension):
 
         # write config for model evaluation
         eval_config = copy.copy(self.config)
+        eval_config['load_from_saved_parameters'] = True
         eval_config['saved_parameters'] = temp_model_path
 
         # make the dev set look like the test set in the dynamic config so that we can run in evaluation mode

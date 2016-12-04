@@ -173,6 +173,8 @@ def create_dictionary(input_files, filenames_no_extensions):
     else:
         logger.info("Creating dictionary of all words")
         vocab_count = counter.most_common()
+    # NOTE: this line is very important, as it creates the indices for UNK, <s> and </s>
+    # downstream applications must be aware of these indices
     vocab = {'UNK': 1, '<s>': 0, '</s>': 0}
     for i, (word, count) in enumerate(vocab_count):
         vocab[word] = i + 2

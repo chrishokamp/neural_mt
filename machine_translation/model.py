@@ -143,6 +143,45 @@ class GRUInitialState(GatedRecurrent):
                 add_role(self.parameters[i], WEIGHT)
 
 
+# WORKING HERE -- initialize decoder initial state with constraint representation vector
+class GRUSpecialInitialState(GatedRecurrent):
+    """Gated Recurrent with user-specified initial state
+
+    Initial state of Gated Recurrent is set by an MLP that conditions on the
+    concatenated last hidden states of any bidirectional encoder, applies an affine
+    transformation followed by a tanh non-linearity to set initial state.
+
+    This differs from GRUInitialState because the user can provide any representation for the initial state
+
+    """
+    def __init__(self, representation_dim, representation_name='initial_state_representation',
+                 **kwargs):
+        super(GRUInitialState, self).__init__(**kwargs)
+        self.representation_dim = representation_dim
+        self.representation_name = representation_name
+        self.initial_transformer = MLP(activations=[Tanh()],
+                                       dims=[representation_dim, self.dim],
+                                       name='state_initializer')
+        self.children.append(self.initial_transformer)
+
+    @application
+    def initial_states(self, batch_size, *args, **kwargs):
+        representation = kwargs[self.representation_name]
+        # Note: this is the left-to-right representation only
+        initial_state = self.initial_transformer.apply(
+            representation[0, :, -self.representation_dim:])
+        return initial_state
+
+    def _allocate(self):
+        self.parameters.append(shared_floatx_nans((self.dim, self.dim),
+                                                  name='state_to_state'))
+        self.parameters.append(shared_floatx_nans((self.dim, 2 * self.dim),
+                                                  name='state_to_gates'))
+        for i in range(2):
+            if self.parameters[i]:
+                add_role(self.parameters[i], WEIGHT)
+
+
 class Decoder(Initializable):
     """
     Decoder of RNNsearch model.

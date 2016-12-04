@@ -232,7 +232,11 @@ class RunExternalValidation(SimpleExtension):
 
         # make the dev set look like the test set in the dynamic config so that we can run in evaluation mode
         eval_config['test_set'] = eval_config['val_set']
+        # for IMT, in the case that the user has hard-coded prefixes
+        if eval_config.get('val_set_prefixes', None) is not None:
+            eval_config['test_prefixes'] = eval_config['val_set_prefixes']
         eval_config['test_gold_refs'] = eval_config['val_set_grndtruth']
+
         eval_config['translated_output_file'] = os.path.join(self.temp_evaluation_dir, temp_model_prefix + '.out')
         eval_config['saveto'] = self.temp_evaluation_dir
         eval_config['model_save_directory'] = self.temp_evaluation_dir

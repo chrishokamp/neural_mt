@@ -156,7 +156,7 @@ class GRUSpecialInitialState(GatedRecurrent):
     """
     def __init__(self, representation_dim, representation_name='initial_state_representation',
                  **kwargs):
-        super(GRUInitialState, self).__init__(**kwargs)
+        super(GRUSpecialInitialState, self).__init__(**kwargs)
         self.representation_dim = representation_dim
         self.representation_name = representation_name
         self.initial_transformer = MLP(activations=[Tanh()],

@@ -366,8 +366,6 @@ class NMTPredictor:
                     .format(self.n_best))
         total_cost = 0.0
 
-        # TODO: the tokenizer throws an error when the input file is opened with encoding='utf8'
-        # why would this happen?
         with codecs.open(input_file, encoding='utf8') as inp:
             for i, line in enumerate(inp.read().strip().split('\n')):
                 logger.info("Translating segment: {}".format(i))

@@ -378,11 +378,11 @@ class NMTPredictor:
                 nbest_costs = costs[:self.n_best]
 
                 if self.n_best == 1:
-                    ftrans.write((nbest_translations[0] + '\n').decode('utf8'))
+                    ftrans.write((nbest_translations[0] + u'\n'))
                     total_cost += nbest_costs[0]
                 else:
                     # one blank line to separate each nbest list
-                    ftrans.write('\n'.join(nbest_translations).decode('utf8') + '\n\n')
+                    ftrans.write('\n'.join(nbest_translations) + u'\n\n')
                     total_cost += sum(nbest_costs)
 
                 if i != 0 and i % 100 == 0:
@@ -558,7 +558,7 @@ def run(mode, config_obj, bokeh):
         with codecs.open(translated_output_file, encoding='utf8') as hyps:
             for l in hyps.read().strip().split('\n'):
                 # send the line to the BLEU script
-                print(l.encode('utf8'), file= mb_subprocess.stdin)
+                print(l.encode('utf8'), file=mb_subprocess.stdin)
                 mb_subprocess.stdin.flush()
 
             # send end of file, read output.

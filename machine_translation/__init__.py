@@ -412,7 +412,6 @@ class NMTPredictor:
 
         """
 
-
         if tokenize:
             tokenizer = Popen(self.tokenizer_cmd, stdin=PIPE, stdout=PIPE)
             segment, _ = tokenizer.communicate(segment)
@@ -454,12 +453,12 @@ class NMTPredictor:
                 except AssertionError as e:
                     src_in = NMTPredictor.sutils._idx_to_word(segment, self.src_ivocab)
                     trans_out = NMTPredictor.sutils._idx_to_word(trans_out, self.trg_ivocab)
-                    logger.error("ERROR: {} does not end with the EOS symbol".format(trans_out))
-                    logger.error("I'm continuing anyway...")
+                    logger.error(u"ERROR: {} does not end with the EOS symbol".format(trans_out))
+                    logger.error(u"I'm continuing anyway...")
             # TODO: why would this error happen?
             except ValueError:
-                logger.info("Can NOT find a translation for line: {}".format(src_in))
-                trans_out = '<UNK>'
+                logger.info(u"Can NOT find a translation for line: {}".format(src_in))
+                trans_out = u'<UNK>'
                 cost = 0.
 
             if detokenize:
@@ -469,10 +468,10 @@ class NMTPredictor:
                 trans_out = trans_out.strip()
 
             # TODO: remove this quick hack
-            trans_out = trans_out.replace('<UNK>', 'UNK')
+            trans_out = trans_out.replace(u'<UNK>', u'UNK')
 
-            logger.info("Source: {}".format(src_in))
-            logger.info("Target Hypothesis: {}".format(trans_out))
+            logger.info(u"Source: {}".format(src_in))
+            logger.info(u"Target Hypothesis: {}".format(trans_out))
 
             best_n_hyps.append(trans_out)
             best_n_costs.append(cost)

@@ -109,6 +109,8 @@ def get_tr_stream(src_vocab, trg_vocab, src_data, trg_data,
                   src_vocab_size=30000, trg_vocab_size=30000, unk_id=1,
                   seq_len=50, batch_size=80, sort_k_batches=12, bos_token=None, **kwargs):
     """Prepares the training data stream."""
+    if type(bos_token) is str:
+        bos_token = bos_token.decode('utf8')
 
     # Load dictionaries and ensure special tokens exist
     src_vocab = _ensure_special_tokens(
@@ -123,12 +125,14 @@ def get_tr_stream(src_vocab, trg_vocab, src_data, trg_data,
     # Get text files from both source and target
     src_dataset = TextFile([src_data], src_vocab,
                            bos_token=bos_token,
-                           eos_token='</S>',
-                           unk_token='<UNK>')
+                           eos_token=u'</S>',
+                           unk_token=u'<UNK>',
+                           encoding='utf8')
     trg_dataset = TextFile([trg_data], trg_vocab,
                            bos_token=bos_token,
-                           eos_token='</S>',
-                           unk_token='<UNK>')
+                           eos_token=u'</S>',
+                           unk_token=u'<UNK>',
+                           encoding='utf8')
 
     # Merge them to get a source, target pair
     stream = Merge([src_dataset.get_example_stream(),
@@ -181,6 +185,9 @@ def get_tr_stream(src_vocab, trg_vocab, src_data, trg_data,
 def get_dev_stream(val_set=None, src_vocab=None, src_vocab_size=30000,
                    unk_id=1, bos_token=None, **kwargs):
     """Setup development set stream if necessary."""
+    if type(bos_token) is str:
+        bos_token = bos_token.decode('utf8')
+
     dev_stream = None
     if val_set is not None and src_vocab is not None:
         src_vocab = _ensure_special_tokens(
@@ -189,8 +196,9 @@ def get_dev_stream(val_set=None, src_vocab=None, src_vocab_size=30000,
             bos_idx=0, eos_idx=src_vocab_size - 1, unk_idx=unk_id)
         dev_dataset = TextFile([val_set], src_vocab,
                                bos_token=bos_token,
-                               eos_token='</S>',
-                               unk_token='<UNK>')
+                               eos_token=u'</S>',
+                               unk_token=u'<UNK>',
+                               encoding='utf8')
 
         dev_stream = DataStream(dev_dataset)
     return dev_stream
@@ -372,6 +380,8 @@ class ShuffleBatchTransformer(Transformer):
 def get_textfile_stream(source_file=None, src_vocab=None, src_vocab_size=30000,
                       unk_id=1, bos_token=None):
     """Create a TextFile dataset from a single text file, and return a stream"""
+    if type(bos_token) is str:
+        bos_token = bos_token.decode('utf8')
 
     src_vocab = _ensure_special_tokens(
         src_vocab if isinstance(src_vocab, dict) else
@@ -379,8 +389,9 @@ def get_textfile_stream(source_file=None, src_vocab=None, src_vocab_size=30000,
         bos_idx=0, eos_idx=src_vocab_size - 1, unk_idx=unk_id)
     source_dataset = TextFile([source_file], src_vocab,
                               bos_token=bos_token,
-                              eos_token='</S>',
-                              unk_token='<UNK>')
+                              eos_token=u'</S>',
+                              unk_token=u'<UNK>',
+                              encoding='utf8')
     source_stream = source_dataset.get_example_stream()
     return source_stream
 

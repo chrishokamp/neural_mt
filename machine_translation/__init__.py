@@ -178,13 +178,14 @@ def main(config, tr_stream, dev_stream, use_bokeh=False, src_vocab=None, trg_voc
                 ComputationGraph(generated[1]))  # generated[1] is next_outputs
 
     # Add sampling
-    if config['hook_samples'] >= 1:
-        logger.info("Building sampler")
-        extensions.append(
-            Sampler(model=search_model, data_stream=tr_stream,
-                    hook_samples=config['hook_samples'],
-                    every_n_batches=config['sampling_freq'],
-                    src_vocab_size=config['src_vocab_size']))
+    # Note: this is broken for unicode chars
+    #if config['hook_samples'] >= 1:
+    #    logger.info("Building sampler")
+    #    extensions.append(
+    #        Sampler(model=search_model, data_stream=tr_stream,
+    #                hook_samples=config['hook_samples'],
+    #                every_n_batches=config['sampling_freq'],
+    #                src_vocab_size=config['src_vocab_size']))
 
     # WORKING: remove these validators in favor of Async
     # TODO: implement burn-in in the validation extension (don't fire until we're past the burn-in iteration)

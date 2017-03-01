@@ -1,4 +1,4 @@
-# Unbabel's Models for Deep Machine Translation
+# Neural Machine Translation
 
 **Install**
 
@@ -160,5 +160,20 @@ python preprocess.py -d /media/1tb_drive/parallel_data/en-fr/phrasal_acl/vocab.b
 
 - monitor GPU usage
 `watch -d nvidia-smi`
+
+
+Install Blocks and Fuel
+
+```
+pip install git+git://github.com/mila-udem/blocks.git \
+  -r https://raw.githubusercontent.com/mila-udem/blocks/master/requirements.txt
+```  
+
+```
+export PYTHONPATH=$PYTHONPATH:/home/chokamp/projects/blocks-extras
+```
+
+YAML config file format
+
 
 

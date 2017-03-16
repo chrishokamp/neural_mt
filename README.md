@@ -165,15 +165,12 @@ python preprocess.py -d /media/1tb_drive/parallel_data/en-fr/phrasal_acl/vocab.b
 Install Blocks and Fuel
 
 ```
-pip install git+git://github.com/mila-udem/blocks.git \
+pip install -e git+git://github.com/mila-udem/blocks.git \
   -r https://raw.githubusercontent.com/mila-udem/blocks/master/requirements.txt
 ```  
 
-```
-export PYTHONPATH=$PYTHONPATH:/home/chokamp/projects/blocks-extras
-```
 
-YAML config file format
+TODO (writeme): YAML config file format
 
 
 
